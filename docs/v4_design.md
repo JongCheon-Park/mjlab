@@ -120,20 +120,58 @@ geom     = (left|right)_foot[1-8]_collision   # 8 capsule
 
 ### 3.6 DR (Domain Randomization)
 
-KIMM 코드는 일부 DR 활성: `push_robot`, `foot_friction`, `encoder_bias`, `joint_armature`, `joint_friction`, `joint_damping` 등.
+**활성 11개:** reset 2개 + DR 9개. 학습 시 log의 events 표에 자동 표시됨.
 
-**비활성 (BuiltinPdActuator 비호환 — 어쩔 수 없이 pop):**
+#### Reset (매 episode 시작 시)
 
-| Event          | 사유                                                          |
-| -------------- | ------------------------------------------------------------- |
-| `pd_gains`     | KIMM DR code 가 `BuiltinPositionActuator` 만 지원 (Pd 미지원) |
-| `actuator_rfi` | 동일 — 1-to-1 mapping 가정, BuiltinPdActuator 는 2-to-1     |
+| Event                | mode  | 효과                                            |
+| -------------------- | ----- | ----------------------------------------------- |
+| `reset_base`         | reset | x/y ±0.5m, z +0.01~0.05m, yaw 전 범위 random   |
+| `reset_robot_joints` | reset | default joint pos ±0.1 rad random              |
 
-→ V4 env_cfg.py 에서 `cfg.events.pop(...)` 으로 disable.
+#### Startup DR (매 env spawn 시 한 번)
 
-만약 살리고 싶으면 `envs/mdp/dr/actuator.py` 의 KIMM DR 코드를 BuiltinPdActuator 지원하도록 패치 필요.
+| Event                  | param 범위                                        | 효과                              |
+| ---------------------- | ------------------------------------------------- | --------------------------------- |
+| `foot_friction`        | (0.3, 1.2), shared_random                          | 발 마찰계수 startup random       |
+| `encoder_bias`         | bias ±0.015 rad                                    | 일반 관절 encoder bias            |
+| `encoder_bias_ankle_roll` | bias ±0.03 rad                                  | ankle_roll만 더 큰 bias          |
+| `joint_armature`       | scale (0.9, 1.1)                                   | 관절 armature ±10%                |
+| `joint_damping`        | abs (0.05, 1.0)                                    | 관절 damping random              |
+| `joint_friction`       | abs (0.05, 2.0)                                    | 관절 friction random             |
+| `torso_pseudo_inertia` | α ±0.05, t1/t2/t3 ±0.025~0.05                     | torso mass/inertia 변동           |
+| `link_pseudo_inertia`  | α ±0.025, t ±0.01                                  | 각 link mass/inertia 변동         |
 
-정확한 활성/비활성은 학습 시 log 의 events 표 확인.
+#### Interval DR (학습 중 주기적)
+
+| Event        | interval         | param 범위                                                                            |
+| ------------ | ---------------- | ------------------------------------------------------------------------------------- |
+| `push_robot` | 1.0~3.0 sec 마다 | vx/vy ±0.5 m/s, vz ±0.4, roll/pitch ±0.52 rad/s, yaw ±0.78 (외란 push)               |
+
+#### 비활성 (BuiltinPdActuator 비호환 — pop)
+
+| Event          | 사유                                                                  |
+| -------------- | --------------------------------------------------------------------- |
+| `pd_gains`     | KIMM DR code 가 `BuiltinPositionActuator` 만 지원                     |
+| `actuator_rfi` | 1-to-1 mapping 가정. BuiltinPdActuator 는 2-to-1 (pos+vel 두 control) |
+
+→ V4 env_cfg.py 에서 `cfg.events.pop(...)` 으로 disable. 학습 영향 작음 (다른 DR 8개 활성).
+
+**살리려면** `envs/mdp/dr/actuator.py` 의 KIMM DR 코드를 BuiltinPdActuator 지원하도록 패치 필요.
+
+#### DR 강도 평가
+
+| DR 항목 | 강도 (대략) | sim-to-real 효과 |
+| ------- | ----------- | ---------------- |
+| foot_friction (0.3-1.2) | 강함 | 마찰 변동 대응 |
+| joint_friction (0.05-2.0) | 강함 | 관절 동작 변동  |
+| joint_damping (0.05-1.0) | 강함 | 관절 응답 변동  |
+| joint_armature ±10% | 중간 | motor inertia 변동 |
+| encoder_bias ±0.015 rad | 약함 | 센서 bias |
+| pseudo_inertia ±5% | 중간 | mass distribution |
+| push_robot ±0.5 m/s | 강함 | 외란 robust |
+
+→ 전반적으로 **공격적 DR**. sim-to-real 잘 됐던 setup 그대로.
 
 ## 4. RL / Actor — rl_cfg.py
 
