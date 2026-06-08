@@ -707,7 +707,9 @@ def make_velocity_env_cfg(
         "barrier_start_factor": 0.75,
         "barrier_delta": 0.025,
         "frame": "foot",  # "root" | "pelvis" | "foot"
-        "asset_cfg": SceneEntityCfg("robot", site_names=()),  # Set per-robot. If frame is "pelvis", body_names=("pelvis",) should be set.
+        "asset_cfg": SceneEntityCfg(
+          "robot", site_names=()
+        ),  # Set per-robot. If frame is "pelvis", body_names=("pelvis",) should be set.
       },
     ),
     # "foot_flat": RewardTermCfg(
@@ -734,9 +736,13 @@ def make_velocity_env_cfg(
         "target_error_penalty_weight": 5.0,
         "running_threshold": 1.0,  # heel-strike 패턴 보상 비활성화 (m/s)
         "window_steps": ms2steps(200),  # millisecond posture buffer
-        "temporal_std_steps": ms2steps(100),  # legacy event-only window; post reward uses current state
+        "temporal_std_steps": ms2steps(
+          100
+        ),  # legacy event-only window; post reward uses current state
         "post_reward_steps": ms2steps(200),  # event step + 4 post-event control steps
-        "post_reward_std_steps": ms2steps(100),  # meaningful through ~3 steps, then decays sharply
+        "post_reward_std_steps": ms2steps(
+          100
+        ),  # meaningful through ~3 steps, then decays sharply
         "min_air_steps": ms2steps(200),  # 직전 공중 구간이 너무 짧은 landing 무시
         "symmetry_penalty_weight": 0.5,
         "symmetry_ema_alpha": 0.05,
@@ -754,9 +760,13 @@ def make_velocity_env_cfg(
         "std": math.sin(math.radians(30.0)),  # 허용 발 기울기 (sin of angle)
         "target_error_penalty_weight": 5.0,
         "window_steps": ms2steps(200),  # millisecond posture buffer
-        "temporal_std_steps": ms2steps(100),  # legacy event-only window; post reward uses current state
+        "temporal_std_steps": ms2steps(
+          100
+        ),  # legacy event-only window; post reward uses current state
         "post_reward_steps": ms2steps(200),  # event step + 4 post-event control steps
-        "post_reward_std_steps": ms2steps(100),  # meaningful through ~3 steps, then decays sharply
+        "post_reward_std_steps": ms2steps(
+          100
+        ),  # meaningful through ~3 steps, then decays sharply
         "min_contact_steps": ms2steps(40),  # 직전 접촉 구간이 매우 짧은 liftoff만 무시
         "min_air_steps": ms2steps(40),  # standing→첫 발 떼기 무시
         "symmetry_penalty_weight": 0.5,
@@ -831,9 +841,13 @@ def make_velocity_env_cfg(
         "target_error_penalty_weight": 5.0,
         "running_threshold": 1.0,
         "window_steps": ms2steps(200),  # millisecond joint-angle buffer
-        "temporal_std_steps": ms2steps(100),  # legacy event-only window; post reward uses current state
+        "temporal_std_steps": ms2steps(
+          100
+        ),  # legacy event-only window; post reward uses current state
         "post_reward_steps": ms2steps(200),  # event step + 4 post-event control steps
-        "post_reward_std_steps": ms2steps(100),  # meaningful through ~3 steps, then decays sharply
+        "post_reward_std_steps": ms2steps(
+          100
+        ),  # meaningful through ~3 steps, then decays sharply
         "min_air_steps": ms2steps(200),  # 직전 공중 구간이 너무 짧은 landing 무시
         "axis_signs": 1.0,
         "symmetry_penalty_weight": 0.5,
@@ -854,9 +868,13 @@ def make_velocity_env_cfg(
         "target_error_penalty_weight": 5.0,
         "running_threshold": 1.0,
         "window_steps": ms2steps(200),  # millisecond joint-angle buffer
-        "temporal_std_steps": ms2steps(100),  # legacy event-only window; post reward uses current state
+        "temporal_std_steps": ms2steps(
+          100
+        ),  # legacy event-only window; post reward uses current state
         "post_reward_steps": ms2steps(200),  # event step + 4 post-event control steps
-        "post_reward_std_steps": ms2steps(100),  # meaningful through ~3 steps, then decays sharply
+        "post_reward_std_steps": ms2steps(
+          100
+        ),  # meaningful through ~3 steps, then decays sharply
         "min_contact_steps": ms2steps(40),  # 직전 접촉 구간이 매우 짧은 liftoff만 무시
         "min_air_steps": ms2steps(40),  # standing→첫 발 떼기 무시
         "axis_signs": 1.0,
@@ -878,9 +896,13 @@ def make_velocity_env_cfg(
         "target_error_penalty_weight": 5.0,
         "running_threshold": 1.0,
         "window_steps": ms2steps(200),  # millisecond joint-angle buffer
-        "temporal_std_steps": ms2steps(100),  # legacy event-only window; post reward uses current state
+        "temporal_std_steps": ms2steps(
+          100
+        ),  # legacy event-only window; post reward uses current state
         "post_reward_steps": ms2steps(200),  # event step + 4 post-event control steps
-        "post_reward_std_steps": ms2steps(100),  # meaningful through ~3 steps, then decays sharply
+        "post_reward_std_steps": ms2steps(
+          100
+        ),  # meaningful through ~3 steps, then decays sharply
         "min_air_steps": ms2steps(200),  # 직전 공중 구간이 너무 짧은 landing 무시
         "axis_signs": 1.0,
         "symmetry_penalty_weight": 0.5,
@@ -901,9 +923,13 @@ def make_velocity_env_cfg(
         "target_error_penalty_weight": 5.0,
         "running_threshold": 1.0,
         "window_steps": ms2steps(200),  # millisecond joint-angle buffer
-        "temporal_std_steps": ms2steps(100),  # legacy event-only window; post reward uses current state
+        "temporal_std_steps": ms2steps(
+          100
+        ),  # legacy event-only window; post reward uses current state
         "post_reward_steps": ms2steps(200),  # event step + 4 post-event control steps
-        "post_reward_std_steps": ms2steps(100),  # meaningful through ~3 steps, then decays sharply
+        "post_reward_std_steps": ms2steps(
+          100
+        ),  # meaningful through ~3 steps, then decays sharply
         "min_contact_steps": ms2steps(40),  # 직전 접촉 구간이 매우 짧은 liftoff만 무시
         "min_air_steps": ms2steps(40),  # standing→첫 발 떼기 무시
         "axis_signs": 1.0,

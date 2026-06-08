@@ -47,7 +47,6 @@ class RewardParamStage(TypedDict):
   value: float
 
 
-
 def terrain_levels_vel(
   env: ManagerBasedRlEnv,
   env_ids: torch.Tensor,

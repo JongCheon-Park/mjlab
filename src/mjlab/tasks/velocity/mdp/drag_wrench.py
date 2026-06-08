@@ -75,9 +75,10 @@ def compute_velocity_drag_wrench(
     torch.sum(actual_lin_xy * direction, dim=-1),
     min=0.0,
   )
-  magnitude = drag_force.to(device=device, dtype=dtype) + drag_damping.to(
-    device=device, dtype=dtype
-  ) * forward_speed
+  magnitude = (
+    drag_force.to(device=device, dtype=dtype)
+    + drag_damping.to(device=device, dtype=dtype) * forward_speed
+  )
   magnitude = torch.clamp(magnitude, min=0.0, max=force_clip_xy)
 
   force_xy = -magnitude.unsqueeze(-1) * direction
@@ -184,9 +185,9 @@ class VelocityDragWrench:
     )
 
     damping_min, damping_max = self.cfg.drag_damping_range
-    self.drag_damping[env_ids] = damping_min + (
-      damping_max - damping_min
-    ) * torch.rand(len(env_ids), device=self.device)
+    self.drag_damping[env_ids] = damping_min + (damping_max - damping_min) * torch.rand(
+      len(env_ids), device=self.device
+    )
 
   def apply(self, command: torch.Tensor) -> None:
     if not self._enabled():

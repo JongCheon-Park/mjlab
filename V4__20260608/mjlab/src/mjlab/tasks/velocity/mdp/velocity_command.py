@@ -101,8 +101,10 @@ class UniformVelocityCommand(CommandTerm):
     p_longitudinal = self.cfg.rel_longitudinal_envs
     p_lateral = self.cfg.rel_lateral_envs
     is_longitudinal = is_move & (axis_probs <= p_longitudinal)
-    is_lateral = is_move & (axis_probs > p_longitudinal) & (
-      axis_probs <= p_longitudinal + p_lateral
+    is_lateral = (
+      is_move
+      & (axis_probs > p_longitudinal)
+      & (axis_probs <= p_longitudinal + p_lateral)
     )
     is_full_move = is_move & (~is_longitudinal) & (~is_lateral)
     self.is_longitudinal_env[env_ids] = is_longitudinal
@@ -112,7 +114,7 @@ class UniformVelocityCommand(CommandTerm):
     speed_probs = torch.rand(len(env_ids), device=self.device)
     p_slow = self.cfg.rel_slow_envs
     p_fast = self.cfg.rel_fast_envs
-    
+
     is_slow = speed_probs < p_slow
     is_fast = (speed_probs >= p_slow) & (speed_probs < p_slow + p_fast)
     is_nominal = speed_probs >= p_slow + p_fast
@@ -128,46 +130,46 @@ class UniformVelocityCommand(CommandTerm):
     lin_x_range = self.cfg.ranges.lin_vel_x
     lin_y_range = self.cfg.ranges.lin_vel_y
     ang_z_range = self.cfg.ranges.ang_vel_z
-    
-    def sample_between(count, r, scale_inner, scale_outer):
-        r_min, r_max = r
-        
-        b1_min = r_min * scale_outer
-        b1_max = r_min * scale_inner
-        
-        b2_min = r_max * scale_inner
-        b2_max = r_max * scale_outer
-        
-        width1 = max(0.0, b1_max - b1_min)
-        width2 = max(0.0, b2_max - b2_min)
-        total_width = width1 + width2
-        
-        if total_width < 1e-6:
-             return torch.zeros(count, device=self.device)
 
-        p1 = width1 / total_width
-        
-        res = torch.empty(count, device=self.device)
-        choice = torch.rand(count, device=self.device) < p1
-        
-        if choice.any():
-            n = choice.sum()
-            res[choice] = torch.empty(n, device=self.device).uniform_(b1_min, b1_max)
-        if (~choice).any():
-            n = (~choice).sum()
-            res[~choice] = torch.empty(n, device=self.device).uniform_(b2_min, b2_max)
-            
-        return res
+    def sample_between(count, r, scale_inner, scale_outer):
+      r_min, r_max = r
+
+      b1_min = r_min * scale_outer
+      b1_max = r_min * scale_inner
+
+      b2_min = r_max * scale_inner
+      b2_max = r_max * scale_outer
+
+      width1 = max(0.0, b1_max - b1_min)
+      width2 = max(0.0, b2_max - b2_min)
+      total_width = width1 + width2
+
+      if total_width < 1e-6:
+        return torch.zeros(count, device=self.device)
+
+      p1 = width1 / total_width
+
+      res = torch.empty(count, device=self.device)
+      choice = torch.rand(count, device=self.device) < p1
+
+      if choice.any():
+        n = choice.sum()
+        res[choice] = torch.empty(n, device=self.device).uniform_(b1_min, b1_max)
+      if (~choice).any():
+        n = (~choice).sum()
+        res[~choice] = torch.empty(n, device=self.device).uniform_(b2_min, b2_max)
+
+      return res
 
     # Generate candidate velocities for everyone
     # To optimize, we could only generate for is_move | is_turn, but vectorization is usually fine.
-    
+
     # Initialize with Nominal
     count_all = len(env_ids)
-    
-    # We'll build up components. 
+
+    # We'll build up components.
     # Actually, let's just index by speed mask to keep it clean.
-    
+
     vx = torch.zeros(count_all, device=self.device)
     vy = torch.zeros(count_all, device=self.device)
     wz = torch.zeros(count_all, device=self.device)
@@ -179,79 +181,83 @@ class UniformVelocityCommand(CommandTerm):
 
     # -- Fast Sampling --
     if is_fast.any():
-        idx_mask = is_fast
-        count = idx_mask.sum()
-        s_min = self.cfg.fast_threshold
-        s_max = 1.0
-        vx[idx_mask] = sample_between(count, lin_x_range, s_min, s_max)
-        vy[idx_mask] = sample_between(count, lin_y_range, s_min, s_max)
-        wz[idx_mask] = sample_between(count, ang_z_range, s_min, s_max)
-        wz_move[idx_mask] = sample_between(count, move_ang_z_range, s_min, s_max)
+      idx_mask = is_fast
+      count = idx_mask.sum()
+      s_min = self.cfg.fast_threshold
+      s_max = 1.0
+      vx[idx_mask] = sample_between(count, lin_x_range, s_min, s_max)
+      vy[idx_mask] = sample_between(count, lin_y_range, s_min, s_max)
+      wz[idx_mask] = sample_between(count, ang_z_range, s_min, s_max)
+      wz_move[idx_mask] = sample_between(count, move_ang_z_range, s_min, s_max)
 
     # -- Slow Sampling --
     if is_slow.any():
-        idx_mask = is_slow
-        count = idx_mask.sum()
-        s_min = 0.0
-        s_max = self.cfg.slow_threshold
-        vx[idx_mask] = sample_between(count, lin_x_range, s_min, s_max)
-        vy[idx_mask] = sample_between(count, lin_y_range, s_min, s_max)
-        wz[idx_mask] = sample_between(count, ang_z_range, s_min, s_max)
-        wz_move[idx_mask] = sample_between(count, move_ang_z_range, s_min, s_max)
+      idx_mask = is_slow
+      count = idx_mask.sum()
+      s_min = 0.0
+      s_max = self.cfg.slow_threshold
+      vx[idx_mask] = sample_between(count, lin_x_range, s_min, s_max)
+      vy[idx_mask] = sample_between(count, lin_y_range, s_min, s_max)
+      wz[idx_mask] = sample_between(count, ang_z_range, s_min, s_max)
+      wz_move[idx_mask] = sample_between(count, move_ang_z_range, s_min, s_max)
 
     # -- Nominal Sampling --
     if is_nominal.any():
-        idx_mask = is_nominal
-        count = idx_mask.sum()
-        s_min = self.cfg.slow_threshold
-        s_max = self.cfg.fast_threshold
-        vx[idx_mask] = sample_between(count, lin_x_range, s_min, s_max)
-        vy[idx_mask] = sample_between(count, lin_y_range, s_min, s_max)
-        wz[idx_mask] = sample_between(count, ang_z_range, s_min, s_max)
-        wz_move[idx_mask] = sample_between(count, move_ang_z_range, s_min, s_max)
-
+      idx_mask = is_nominal
+      count = idx_mask.sum()
+      s_min = self.cfg.slow_threshold
+      s_max = self.cfg.fast_threshold
+      vx[idx_mask] = sample_between(count, lin_x_range, s_min, s_max)
+      vy[idx_mask] = sample_between(count, lin_y_range, s_min, s_max)
+      wz[idx_mask] = sample_between(count, ang_z_range, s_min, s_max)
+      wz_move[idx_mask] = sample_between(count, move_ang_z_range, s_min, s_max)
 
     # 6. Apply Motion Constraints
-    
+
     # Full move: Keep everything (vx, vy, wz)
     if is_full_move.any():
-        idx = env_ids[is_full_move]
-        self.vel_command_b[idx, 0] = vx[is_full_move]
-        self.vel_command_b[idx, 1] = vy[is_full_move]
-        self.vel_command_b[idx, 2] = wz_move[is_full_move]
+      idx = env_ids[is_full_move]
+      self.vel_command_b[idx, 0] = vx[is_full_move]
+      self.vel_command_b[idx, 1] = vy[is_full_move]
+      self.vel_command_b[idx, 2] = wz_move[is_full_move]
 
     # Longitudinal move: keep x-axis only.
     if is_longitudinal.any():
-        idx = env_ids[is_longitudinal]
-        self.vel_command_b[idx, 0] = vx[is_longitudinal]
-        self.vel_command_b[idx, 1] = 0.0
-        self.vel_command_b[idx, 2] = 0.0
+      idx = env_ids[is_longitudinal]
+      self.vel_command_b[idx, 0] = vx[is_longitudinal]
+      self.vel_command_b[idx, 1] = 0.0
+      self.vel_command_b[idx, 2] = 0.0
 
     # Lateral move: keep y-axis only.
     if is_lateral.any():
-        idx = env_ids[is_lateral]
-        self.vel_command_b[idx, 0] = 0.0
-        self.vel_command_b[idx, 1] = vy[is_lateral]
-        self.vel_command_b[idx, 2] = 0.0
+      idx = env_ids[is_lateral]
+      self.vel_command_b[idx, 0] = 0.0
+      self.vel_command_b[idx, 1] = vy[is_lateral]
+      self.vel_command_b[idx, 2] = 0.0
 
     # Turn: Zero linear, Keep angular (which is already sampled by speed)
     if is_turn.any():
-        idx = env_ids[is_turn]
-        self.vel_command_b[idx, 0] = 0.0
-        self.vel_command_b[idx, 1] = 0.0
-        self.vel_command_b[idx, 2] = wz[is_turn]
+      idx = env_ids[is_turn]
+      self.vel_command_b[idx, 0] = 0.0
+      self.vel_command_b[idx, 1] = 0.0
+      self.vel_command_b[idx, 2] = wz[is_turn]
 
     # Stand: Zero everything (Handled by _update_command using is_standing_env, but good to init 0 here too)
     if is_stand.any():
-        idx = env_ids[is_stand]
-        self.vel_command_b[idx, :] = 0.0
+      idx = env_ids[is_stand]
+      self.vel_command_b[idx, :] = 0.0
 
     # Handle Heading / init_vel (same as before)
     if self.cfg.heading_command:
       assert self.cfg.ranges.heading is not None
-      r = torch.rand(len(env_ids), device=self.device) # New random for heading
-      self.heading_target[env_ids] = r * (self.cfg.ranges.heading[1] - self.cfg.ranges.heading[0]) + self.cfg.ranges.heading[0]
-      self.is_heading_env[env_ids] = torch.rand(len(env_ids), device=self.device) <= self.cfg.rel_heading_envs
+      r = torch.rand(len(env_ids), device=self.device)  # New random for heading
+      self.heading_target[env_ids] = (
+        r * (self.cfg.ranges.heading[1] - self.cfg.ranges.heading[0])
+        + self.cfg.ranges.heading[0]
+      )
+      self.is_heading_env[env_ids] = (
+        torch.rand(len(env_ids), device=self.device) <= self.cfg.rel_heading_envs
+      )
       self.is_heading_env[env_ids[is_longitudinal | is_lateral]] = False
 
     # Note: init_velocity_prob logic
@@ -487,7 +493,7 @@ class UniformVelocityCommandCfg(CommandTermCfg):
   # Caps yaw-rate sampling for move commands only. Turn-in-place commands still
   # use the full ang_vel_z range.
   turn_threshold: float = 1.0
-  
+
   @dataclass
   class Ranges:
     lin_vel_x: tuple[float, float]
@@ -514,8 +520,6 @@ class UniformVelocityCommandCfg(CommandTermCfg):
         "the `ranges.heading` parameter is set to None."
       )
     if self.rel_longitudinal_envs + self.rel_lateral_envs > 1.0:
-      raise ValueError(
-        "rel_longitudinal_envs + rel_lateral_envs must be <= 1.0."
-      )
+      raise ValueError("rel_longitudinal_envs + rel_lateral_envs must be <= 1.0.")
     if self.turn_threshold <= 0.0:
       raise ValueError("turn_threshold must be > 0.")

@@ -302,7 +302,6 @@ def kimm_v4_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
   cfg.rewards["base_height"].params["target_height"] = 0.84
 
-
   cfg.curriculum["biped_double_support_time_weight"] = CurriculumTermCfg(
     func=mdp.reward_weight,
     params={

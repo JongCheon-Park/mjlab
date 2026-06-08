@@ -13,11 +13,11 @@ src/mjlab/asset_zoo/robots/kimm_v4/
 
 src/mjlab/tasks/velocity/config/v4/
 ├── env_cfgs.py             환경 (reward, sensor, action, curriculum)
-├── rl_cfg.py               PPO + plain MLP actor (NOT MoE)
+├── rl_cfg.py               PPO + MoE actor (4-expert + STANDING route)
 └── __init__.py             Task 등록
 ```
 
-학습 로그: `logs/rsl_rl/v4_velocity/<timestamp>_<run_name>/`
+학습 로그: `logs/rsl_rl/v4_velocity_moe/<timestamp>_<run_name>/`
 
 ## 1. 등록된 task
 
@@ -175,12 +175,44 @@ geom     = (left|right)_foot[1-8]_collision   # 8 capsule
 
 ## 4. RL / Actor — rl_cfg.py
 
-### 4.1 Network (plain MLP, NOT MoE)
+### 4.1 Network — MoE (4-expert + STANDING route)
 
-| 모듈        | layers          |
+```
+                    obs
+                     │
+       ┌─────────────┼──────────────────────────────────┐
+       ▼             ▼          ▼          ▼            ▼
+   SHARED MLP    expert[0]   expert[1]  expert[2]   expert[3]
+   (256→128)     (vx)         (vy)       (yaw)       (STANDING)
+   always on     └─────── 4-way routing ─────────────────┘
+                          1 selected
+                     │
+          shared(128) + expert(128) → concat (256)
+                     │
+                head MLP (128)
+                     │
+              action μ (13 dim) → Gaussian
+```
+
+활성 path per step = **shared + 1 routed expert = 2** (총 5 networks 등록).
+
+| 모듈        | dims            |
 | ----------- | --------------- |
-| actor MLP   | (512, 256, 128) |
+| shared MLP  | (256, 128)      |
+| 각 expert   | (192, 128)      |
+| head MLP    | (128,)          |
 | critic MLP  | (512, 256, 128) |
+
+### 4.1.1 Routing 규칙
+
+| 조건                              | 선택 expert  |
+| --------------------------------- | ------------ |
+| \|cmd\|_max < 0.05 m/s            | 3 (STANDING) |
+| argmax(\|cmd[0]\|) = 0 (vx 우세)  | 0 (vx)       |
+| argmax(\|cmd[1]\|) = 1 (vy 우세)  | 1 (vy)       |
+| argmax(\|cmd[2]\|) = 2 (yaw 우세) | 2 (yaw)      |
+
+cmd = obs 마지막 3 dim (vx, vy, yaw). `cmd_start=-3`.
 
 ### 4.2 PPO hyperparams
 
@@ -197,7 +229,7 @@ geom     = (left|right)_foot[1-8]_collision   # 8 capsule
 | num_steps_per_env    | 24                              |
 | max_iterations       | 30,000                          |
 | save_interval        | 100                             |
-| experiment_name      | "v4_velocity"                   |
+| experiment_name      | "v4_velocity_moe"               |
 
 ### 4.3 Distribution
 
@@ -225,7 +257,7 @@ CUDA_VISIBLE_DEVICES=0 uv run train Mjlab-Velocity-Rough-KIMM-V4 \
 
 ```sh
 uv run play Mjlab-Velocity-Flat-KIMM-V4 \
-  --checkpoint-file logs/rsl_rl/v4_velocity/<ts>_v4_t1/model_5000.pt \
+  --checkpoint-file logs/rsl_rl/v4_velocity_moe/<ts>_v4_t1/model_5000.pt \
   --viewer viser
 ```
 

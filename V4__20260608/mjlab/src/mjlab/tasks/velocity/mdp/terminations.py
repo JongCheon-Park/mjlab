@@ -12,6 +12,8 @@ if TYPE_CHECKING:
   from mjlab.envs import ManagerBasedRlEnv
 
 _DEFAULT_ASSET_CFG = SceneEntityCfg("robot")
+
+
 def illegal_contact(
   env: ManagerBasedRlEnv,
   sensor_name: str,
