@@ -1,0 +1,1 @@
+"""Diden Walker asset module."""

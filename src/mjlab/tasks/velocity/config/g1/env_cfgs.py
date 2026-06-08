@@ -94,7 +94,10 @@ def unitree_g1_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   twist_cmd.viz.z_offset = 1.15
 
   cfg.events["foot_friction"].params["asset_cfg"].geom_names = geom_names
-  cfg.events["base_com"].params["asset_cfg"].body_names = ("torso_link",)
+  if "base_com" in cfg.events:
+    cfg.events["base_com"].params["asset_cfg"].body_names = ("torso_link",)
+  if "torso_pseudo_inertia" in cfg.events:
+    cfg.events["torso_pseudo_inertia"].params["asset_cfg"].body_names = ("torso_link",)
 
   # Rationale for std values:
   # - Knees/hip_pitch get the loosest std to allow natural leg bending during stride.
@@ -152,7 +155,8 @@ def unitree_g1_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
   cfg.rewards["body_ang_vel"].weight = -0.05
   cfg.rewards["angular_momentum"].weight = -0.02
-  cfg.rewards["air_time"].weight = 0.0
+  if "air_time" in cfg.rewards:
+    cfg.rewards["air_time"].weight = 0.0
 
   cfg.rewards["self_collisions"] = RewardTermCfg(
     func=mdp.self_collision_cost,
@@ -203,8 +207,8 @@ def unitree_g1_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   cfg.scene.sensors = tuple(
     s for s in (cfg.scene.sensors or ()) if s.name != "terrain_scan"
   )
-  del cfg.observations["actor"].terms["height_scan"]
-  del cfg.observations["critic"].terms["height_scan"]
+  for group in ("actor", "critic"):
+    cfg.observations[group].terms.pop("height_scan", None)
 
   cfg.terminations.pop("out_of_terrain_bounds", None)
 

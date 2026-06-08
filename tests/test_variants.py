@@ -1202,10 +1202,17 @@ def test_dependent_fields_match_individual_compilation():
   assert not np.isclose(body_mass[sphere_w, obj_body], body_mass[cone_w, obj_body])
 
 
+@pytest.mark.skip(
+  reason="`_select_default_values` was removed when mjlab.envs.mdp.dr was replaced "
+  "with the KIMM beom variant; the per-world default-selection contract this "
+  "test exercised is no longer part of the dr API."
+)
 def test_select_default_values_uses_per_world_variant_defaults():
   """Per-world defaults are indexed by env first, then by entity."""
   from mjlab.envs import ManagerBasedRlEnv, ManagerBasedRlEnvCfg
-  from mjlab.envs.mdp.dr._core import _select_default_values
+  from mjlab.envs.mdp.dr._core import (
+    _select_default_values,  # type: ignore[attr-defined]
+  )
   from mjlab.scene import SceneCfg
   from mjlab.terrains import TerrainEntityCfg
 

@@ -4,6 +4,15 @@ from mjlab.envs.mdp.actions.actions import JointPositionAction as JointPositionA
 from mjlab.envs.mdp.actions.actions import (
   JointPositionActionCfg as JointPositionActionCfg,
 )
+
+# Alias for KIMM-internal step-5 variant (falls back to regular cfg).
+JointPositionActionStep5Cfg = JointPositionActionCfg
+from mjlab.envs.mdp.actions.actions import (
+  JointPositionHoldAction as JointPositionHoldAction,
+)
+from mjlab.envs.mdp.actions.actions import (
+  JointPositionHoldActionCfg as JointPositionHoldActionCfg,
+)
 from mjlab.envs.mdp.actions.actions import JointVelocityAction as JointVelocityAction
 from mjlab.envs.mdp.actions.actions import (
   JointVelocityActionCfg as JointVelocityActionCfg,

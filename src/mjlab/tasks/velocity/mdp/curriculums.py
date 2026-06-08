@@ -15,11 +15,36 @@ if TYPE_CHECKING:
 _DEFAULT_SCENE_CFG = SceneEntityCfg("robot")
 
 
-class VelocityStage(TypedDict):
-  step: int
+class _VelocityStageOptional(TypedDict, total=False):
   lin_vel_x: tuple[float, float] | None
   lin_vel_y: tuple[float, float] | None
   ang_vel_z: tuple[float, float] | None
+
+
+class VelocityStage(_VelocityStageOptional):
+  step: int
+
+
+class ResamplingStage(TypedDict):
+  step: int
+  resampling_time_range: tuple[float, float] | None
+
+
+class MotionMixStage(TypedDict):
+  step: int
+  rel_standing_envs: float | None
+  rel_turn_in_place_envs: float | None
+
+
+class RewardWeightStage(TypedDict):
+  step: int
+  weight: float
+
+
+class RewardParamStage(TypedDict):
+  step: int
+  param: str
+  value: float
 
 
 def terrain_levels_vel(
@@ -84,13 +109,15 @@ def commands_vel(
   env: ManagerBasedRlEnv,
   env_ids: torch.Tensor,
   command_name: str,
-  velocity_stages: list[VelocityStage],
+  velocity_stages: list[VelocityStage] | None = None,
+  resampling_stages: list[ResamplingStage] | None = None,
+  motion_mix_stages: list[MotionMixStage] | None = None,
 ) -> dict[str, torch.Tensor]:
   del env_ids  # Unused.
   command_term = env.command_manager.get_term(command_name)
   assert command_term is not None
   cfg = cast(UniformVelocityCommandCfg, command_term.cfg)
-  for stage in velocity_stages:
+  for stage in velocity_stages or ():
     if env.common_step_counter >= stage["step"]:
       if "lin_vel_x" in stage and stage["lin_vel_x"] is not None:
         cfg.ranges.lin_vel_x = stage["lin_vel_x"]
@@ -98,6 +125,17 @@ def commands_vel(
         cfg.ranges.lin_vel_y = stage["lin_vel_y"]
       if "ang_vel_z" in stage and stage["ang_vel_z"] is not None:
         cfg.ranges.ang_vel_z = stage["ang_vel_z"]
+  for stage in resampling_stages or ():
+    if env.common_step_counter >= stage["step"]:
+      if stage["resampling_time_range"] is not None:
+        cfg.resampling_time_range = stage["resampling_time_range"]
+        command_term.time_left.clamp_(max=cfg.resampling_time_range[1])
+  for stage in motion_mix_stages or ():
+    if env.common_step_counter >= stage["step"]:
+      if stage["rel_standing_envs"] is not None:
+        cfg.rel_standing_envs = stage["rel_standing_envs"]
+      if stage["rel_turn_in_place_envs"] is not None:
+        cfg.rel_turn_in_place_envs = stage["rel_turn_in_place_envs"]
   return {
     "lin_vel_x_min": torch.tensor(cfg.ranges.lin_vel_x[0]),
     "lin_vel_x_max": torch.tensor(cfg.ranges.lin_vel_x[1]),
@@ -105,4 +143,57 @@ def commands_vel(
     "lin_vel_y_max": torch.tensor(cfg.ranges.lin_vel_y[1]),
     "ang_vel_z_min": torch.tensor(cfg.ranges.ang_vel_z[0]),
     "ang_vel_z_max": torch.tensor(cfg.ranges.ang_vel_z[1]),
+    "resampling_time_min": torch.tensor(cfg.resampling_time_range[0]),
+    "resampling_time_max": torch.tensor(cfg.resampling_time_range[1]),
+    "rel_standing_envs": torch.tensor(cfg.rel_standing_envs),
+    "rel_turn_in_place_envs": torch.tensor(cfg.rel_turn_in_place_envs),
   }
+
+
+def reward_weight(
+  env: ManagerBasedRlEnv,
+  env_ids: torch.Tensor,
+  reward_name: str,
+  weight_stages: list[RewardWeightStage],
+) -> torch.Tensor:
+  """Update a reward term's weight based on training step stages."""
+  del env_ids  # Unused.
+  reward_term_cfg = env.reward_manager.get_term_cfg(reward_name)
+  for stage in weight_stages:
+    if env.common_step_counter > stage["step"]:
+      reward_term_cfg.weight = stage["weight"]
+  return torch.tensor([reward_term_cfg.weight])
+
+
+def reward_param(
+  env: ManagerBasedRlEnv,
+  env_ids: torch.Tensor,
+  reward_name: str,
+  param_stages: list[RewardParamStage],
+) -> torch.Tensor:
+  """Update a reward term's params dict based on training step stages.
+
+  Use ``reward_weight`` to change the outer term weight instead.
+
+  Example cfg::
+
+    CurriculumTermCfg(
+      func=mdp.reward_param,
+      params={
+        "reward_name": "standing_air_time_penalty",
+        "param_stages": [
+          {"step": 0,        "param": "target_air_time", "value": 0.3},
+          {"step": 72_000,   "param": "target_air_time", "value": 0.4},
+          {"step": 192_000,  "param": "target_air_time", "value": 0.5},
+        ],
+      },
+    )
+  """
+  del env_ids  # Unused.
+  reward_term_cfg = env.reward_manager.get_term_cfg(reward_name)
+  for stage in param_stages:
+    if env.common_step_counter > stage["step"]:
+      reward_term_cfg.params[stage["param"]] = stage["value"]
+  first_param = param_stages[0]["param"] if param_stages else None
+  current = reward_term_cfg.params.get(first_param, 0.0) if first_param else 0.0
+  return torch.tensor([current])

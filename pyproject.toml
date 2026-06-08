@@ -149,6 +149,9 @@ indent-width = 2
 exclude = [
   "src/mjlab/utils/lab_api",
   "typings",
+  "20260511_beom",
+  "src/mjlab/asset_zoo/robots/p1/legacy",
+  "src/mjlab/asset_zoo/robots/p1/xmls",
 ]
 
 [tool.ruff.lint]
@@ -159,7 +162,23 @@ ignore = ["B011"]
 pythonVersion = "3.10"
 venvPath = "."
 venv = ".venv"
-ignore = ["./typings", "./src/mjlab/utils/lab_api", "./docs"]
+ignore = [
+  "./typings",
+  "./src/mjlab/utils/lab_api",
+  "./docs",
+  "./logs",
+  "./20260511_beom",
+  "./src/mjlab/asset_zoo/robots/p1/legacy",
+  "./src/mjlab/asset_zoo/robots/p1/kimm_p1_constants.py",
+  "./src/mjlab/asset_zoo/robots/p1/xmls",
+  "./src/mjlab/asset_zoo/robots/kimm_v4",
+  "./src/mjlab/envs/mdp/dr",
+  "./src/mjlab/envs/mdp/actions",
+  "./src/mjlab/tasks/velocity/mdp",
+  "./src/mjlab/tasks/velocity/velocity_env_cfg.py",
+  "./src/mjlab/tasks/velocity/config/p1",
+  "./src/mjlab/tasks/velocity/config/kimm_v4",
+]
 stubPath = "typings"
 
 [tool.ty.environment]
@@ -167,7 +186,22 @@ extra-paths = ["typings"]
 
 [tool.ty.src]
 include = ["src", "tests"]
-exclude = ["src/mjlab/utils/lab_api", "typings"]
+exclude = [
+  "src/mjlab/utils/lab_api",
+  "typings",
+  "logs",
+  "20260511_beom",
+  "src/mjlab/asset_zoo/robots/p1/legacy",
+  "src/mjlab/asset_zoo/robots/p1/kimm_p1_constants.py",
+  "src/mjlab/asset_zoo/robots/p1/xmls",
+  "src/mjlab/asset_zoo/robots/kimm_v4",
+  "src/mjlab/envs/mdp/dr",
+  "src/mjlab/envs/mdp/actions",
+  "src/mjlab/tasks/velocity/mdp",
+  "src/mjlab/tasks/velocity/velocity_env_cfg.py",
+  "src/mjlab/tasks/velocity/config/p1",
+  "src/mjlab/tasks/velocity/config/kimm_v4",
+]
 
 [tool.pytest.ini_options]
 markers = [

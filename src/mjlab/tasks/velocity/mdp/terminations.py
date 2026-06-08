@@ -100,3 +100,11 @@ def terrain_edge_reached(
   at_edge &= env.episode_length_buf > 2
 
   return at_edge
+
+
+def fourbar_constraint_boundary(*_: object, **__: object) -> torch.Tensor:
+  """Compatibility placeholder for non-V4 tasks in the shared no-fourbar package."""
+  raise RuntimeError(
+    "fourbar_constraint_boundary is not available in this shared V4 package. "
+    "The copied V4 config does not use this termination."
+  )

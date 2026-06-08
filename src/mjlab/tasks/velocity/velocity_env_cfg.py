@@ -10,7 +10,7 @@ from dataclasses import replace
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs import mdp as envs_mdp
 from mjlab.envs.mdp import dr
-from mjlab.envs.mdp.actions import JointPositionActionCfg
+from mjlab.envs.mdp.actions import JointPositionActionCfg, JointPositionActionStep5Cfg
 from mjlab.managers.action_manager import ActionTermCfg
 from mjlab.managers.command_manager import CommandTermCfg
 from mjlab.managers.curriculum_manager import CurriculumTermCfg
@@ -35,8 +35,38 @@ from mjlab.terrains.config import ROUGH_TERRAINS_CFG
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
 from mjlab.viewer import ViewerConfig
 
+VELOCITY_MUJOCO_TIMESTEP = 0.005
+VELOCITY_DECIMATION = 4
 
-def make_velocity_env_cfg() -> ManagerBasedRlEnvCfg:
+
+def ms2steps(milliseconds: int | float) -> int | float:
+  """Convert milliseconds to reward steps at the configured control step.
+
+  Integer inputs return rounded integer step counts. Float inputs return float
+  step widths. Zero stays zero so callers can disable a step-based gate.
+  """
+  if VELOCITY_MUJOCO_TIMESTEP <= 0.0:
+    raise ValueError(
+      f"VELOCITY_MUJOCO_TIMESTEP must be positive, got {VELOCITY_MUJOCO_TIMESTEP}."
+    )
+  if VELOCITY_DECIMATION <= 0:
+    raise ValueError(
+      f"VELOCITY_DECIMATION must be positive, got {VELOCITY_DECIMATION}."
+    )
+  if milliseconds == 0:
+    return 0.0 if isinstance(milliseconds, float) else 0
+
+  control_dt = float(VELOCITY_MUJOCO_TIMESTEP) * float(VELOCITY_DECIMATION)
+  scaled = float(milliseconds) / (1000.0 * control_dt)
+  if isinstance(milliseconds, int):
+    return int(math.floor(scaled + 0.5))
+  return scaled
+
+
+def make_velocity_env_cfg(
+  *,
+  joint_pos_step5: bool = False,
+) -> ManagerBasedRlEnvCfg:
   """Create base velocity tracking task configuration."""
 
   ##
@@ -74,11 +104,11 @@ def make_velocity_env_cfg() -> ManagerBasedRlEnvCfg:
   ##
 
   actor_terms = {
-    "base_lin_vel": ObservationTermCfg(
-      func=mdp.builtin_sensor,
-      params={"sensor_name": "robot/imu_lin_vel"},
-      noise=Unoise(n_min=-0.5, n_max=0.5),
-    ),
+    # "base_lin_vel": ObservationTermCfg(
+    #   func=mdp.builtin_sensor,
+    #   params={"sensor_name": "robot/imu_lin_vel"},
+    #   noise=Unoise(n_min=-0.5, n_max=0.5),
+    # ),
     "base_ang_vel": ObservationTermCfg(
       func=mdp.builtin_sensor,
       params={"sensor_name": "robot/imu_ang_vel"},
@@ -101,16 +131,20 @@ def make_velocity_env_cfg() -> ManagerBasedRlEnvCfg:
       func=mdp.generated_commands,
       params={"command_name": "twist"},
     ),
-    "height_scan": ObservationTermCfg(
-      func=envs_mdp.height_scan,
-      params={"sensor_name": "terrain_scan"},
-      noise=Unoise(n_min=-0.1, n_max=0.1),
-      scale=1 / terrain_scan.max_distance,
-    ),
+    # "height_scan": ObservationTermCfg(
+    #   func=envs_mdp.height_scan,
+    #   params={"sensor_name": "terrain_scan"},
+    #   noise=Unoise(n_min=-0.1, n_max=0.1),
+    #   scale=1 / terrain_scan.max_distance,
+    # ),
   }
 
   critic_terms = {
     **actor_terms,
+    "base_lin_vel": ObservationTermCfg(
+      func=mdp.builtin_sensor,
+      params={"sensor_name": "robot/imu_lin_vel"},
+    ),
     "height_scan": ObservationTermCfg(
       func=envs_mdp.height_scan,
       params={"sensor_name": "terrain_scan"},
@@ -132,6 +166,10 @@ def make_velocity_env_cfg() -> ManagerBasedRlEnvCfg:
       func=mdp.foot_contact_forces,
       params={"sensor_name": "feet_ground_contact"},
     ),
+    "actuator_torque": ObservationTermCfg(
+      func=mdp.normalized_actuator_torque,
+      params={"asset_cfg": SceneEntityCfg("robot")},
+    ),
   }
 
   observations = {
@@ -139,11 +177,13 @@ def make_velocity_env_cfg() -> ManagerBasedRlEnvCfg:
       terms=actor_terms,
       concatenate_terms=True,
       enable_corruption=True,
+      history_length=5,
     ),
     "critic": ObservationGroupCfg(
       terms=critic_terms,
       concatenate_terms=True,
       enable_corruption=False,
+      history_length=5,
     ),
   }
 
@@ -161,8 +201,11 @@ def make_velocity_env_cfg() -> ManagerBasedRlEnvCfg:
   # Actions
   ##
 
+  joint_pos_cfg_cls = (
+    JointPositionActionStep5Cfg if joint_pos_step5 else JointPositionActionCfg
+  )
   actions: dict[str, ActionTermCfg] = {
-    "joint_pos": JointPositionActionCfg(
+    "joint_pos": joint_pos_cfg_cls(
       entity_name="robot",
       actuator_names=(".*",),
       scale=0.5,  # Override per-robot.
@@ -178,12 +221,22 @@ def make_velocity_env_cfg() -> ManagerBasedRlEnvCfg:
     "twist": UniformVelocityCommandCfg(
       entity_name="robot",
       resampling_time_range=(3.0, 8.0),
-      rel_standing_envs=0.1,
-      rel_heading_envs=0.3,
-      rel_forward_envs=0.2,
       heading_command=True,
       heading_control_stiffness=0.5,
       debug_vis=True,
+      # Motion Probabilities (Sum <= 1.0, remainder is Move)
+      rel_standing_envs=0.1,  # 10% Stand (Zero Vel)
+      rel_turn_in_place_envs=0.1,  # 10% Turn (Zero Linear, Variable Angular)
+      rel_longitudinal_envs=0.4,  # 40% of move envs use x-axis-only commands.
+      rel_lateral_envs=0.2,  # 20% of move envs use y-axis-only commands.
+      # Speed Level Probabilities (Independent of Motion)
+      rel_slow_envs=0.3,  # 30% Slow (Low Vel Range) - Applied to Turn & Move
+      rel_fast_envs=0.2,  # 20% Fast (High Vel Range) - Applied to Turn & Move
+      # Additional Modifiers
+      rel_heading_envs=0.3,  # 30% Heading Tracking (Overrides Angular Vel)
+      slow_threshold=0.25,  # 25% of max range (lin & ang)
+      fast_threshold=0.75,  # 75% of max range (lin & ang)
+      turn_threshold=1.0,  # Caps yaw rate for move commands only; turn-in-place keeps full ang_vel_z range.
       ranges=UniformVelocityCommandCfg.Ranges(
         lin_vel_x=(-1.0, 1.0),
         lin_vel_y=(-1.0, 1.0),
@@ -215,7 +268,7 @@ def make_velocity_env_cfg() -> ManagerBasedRlEnvCfg:
       func=mdp.reset_joints_by_offset,
       mode="reset",
       params={
-        "position_range": (0.0, 0.0),
+        "position_range": (-0.1, 0.1),
         "velocity_range": (0.0, 0.0),
         "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
       },
@@ -249,21 +302,87 @@ def make_velocity_env_cfg() -> ManagerBasedRlEnvCfg:
       mode="startup",
       func=dr.encoder_bias,
       params={
-        "asset_cfg": SceneEntityCfg("robot"),
+        "asset_cfg": SceneEntityCfg(
+          "robot", joint_names=("^((?!ankle_roll_joint).)*$",)
+        ),
         "bias_range": (-0.015, 0.015),
       },
     ),
-    "base_com": EventTermCfg(
+    "encoder_bias_ankle_roll": EventTermCfg(
       mode="startup",
-      func=dr.body_com_offset,
+      func=dr.encoder_bias,
+      params={
+        "asset_cfg": SceneEntityCfg("robot", joint_names=(".*_ankle_roll_joint",)),
+        "bias_range": (-0.03, 0.03),
+      },
+    ),
+    # alpha scales mass & inertia by e^(2α):
+    #   ±0.01 → ±2%,  ±0.05 → ±10%,  ±0.1 → ±22%
+    "torso_pseudo_inertia": EventTermCfg(
+      mode="startup",
+      func=dr.pseudo_inertia,
       params={
         "asset_cfg": SceneEntityCfg("robot", body_names=()),  # Set per-robot.
-        "operation": "add",
-        "ranges": {
-          0: (-0.025, 0.025),
-          1: (-0.025, 0.025),
-          2: (-0.03, 0.03),
-        },
+        "alpha_range": (-0.05, 0.05),
+        "t1_range": (-0.025, 0.05),
+        "t2_range": (-0.05, 0.05),
+        "t3_range": (-0.05, 0.05),
+      },
+    ),
+    "link_pseudo_inertia": EventTermCfg(
+      mode="startup",
+      func=dr.pseudo_inertia,
+      params={
+        "asset_cfg": SceneEntityCfg("robot", body_names=()),  # Set per-robot.
+        "alpha_range": (-0.025, 0.025),
+        "t_range": (-0.01, 0.01),
+      },
+    ),
+    "joint_armature": EventTermCfg(
+      mode="startup",
+      func=dr.joint_armature,
+      params={
+        "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
+        "operation": "scale",
+        "ranges": (0.9, 1.1),
+      },
+    ),
+    "joint_friction": EventTermCfg(
+      mode="startup",
+      func=dr.joint_friction,
+      params={
+        "asset_cfg": SceneEntityCfg(
+          "robot", joint_names=(".*_hip_.*", ".*_knee_.*", ".*_ankle_.*")
+        ),
+        "operation": "abs",
+        "ranges": (0.05, 2.0),
+      },
+    ),
+    "joint_damping": EventTermCfg(
+      mode="startup",
+      func=dr.joint_damping,
+      params={
+        "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
+        "operation": "abs",
+        "ranges": (0.05, 1.0),
+      },
+    ),
+    "actuator_rfi": EventTermCfg(
+      mode="startup",
+      func=dr.actuator_rfi,
+      params={
+        "asset_cfg": SceneEntityCfg("robot", actuator_ids=[]),
+        "ratio_range": (-0.0, 0.0),
+      },
+    ),
+    "pd_gains": EventTermCfg(
+      mode="reset",
+      func=dr.pd_gains,
+      params={
+        "asset_cfg": SceneEntityCfg("robot", actuator_ids=[]),
+        "kp_range": (0.925, 1.0),
+        "kd_range": (0.925, 1.0),
+        "operation": "scale",
       },
     ),
   }
@@ -276,19 +395,55 @@ def make_velocity_env_cfg() -> ManagerBasedRlEnvCfg:
     "track_linear_velocity": RewardTermCfg(
       func=mdp.track_linear_velocity,
       weight=2.0,
-      params={"command_name": "twist", "std": math.sqrt(0.25)},
+      params={
+        "command_name": "twist",
+        "std": math.sqrt(0.1),
+        "std_walking": math.sqrt(0.15),
+        "std_running": math.sqrt(0.3),
+        "walking_threshold": 0.5,
+        "running_threshold": 1.5,
+      },
     ),
     "track_angular_velocity": RewardTermCfg(
       func=mdp.track_angular_velocity,
       weight=2.0,
-      params={"command_name": "twist", "std": math.sqrt(0.5)},
+      params={
+        "command_name": "twist",
+        "low_std": math.sqrt(0.25),
+        "high_std": math.sqrt(0.5),
+        "speed_threshold": 0.5,
+      },
     ),
     "upright": RewardTermCfg(
-      func=mdp.upright,
+      func=mdp.flat_orientation_multi,
       weight=1.0,
       params={
         "std": math.sqrt(0.2),
-        "asset_cfg": SceneEntityCfg("robot", body_names=()),  # Set per-robot.
+        "asset_cfg": SceneEntityCfg("robot", body_names=()),
+        "weights": [1.0],
+        "weight_xy": (1.0, 1.0),
+        "std_xy": (math.sin(math.radians(5.0)), math.sin(math.radians(1.0))),
+      },
+    ),
+    # "upright": RewardTermCfg(
+    #   func=mdp.flat_orientation,
+    #   weight=1.0,
+    #   params={
+    #     "std": math.sqrt(0.2),
+    #     "asset_cfg": SceneEntityCfg("robot", body_names=()),  # Set per-robot.
+    #   },
+    # ),
+    "base_height": RewardTermCfg(
+      func=mdp.base_height_l2,
+      weight=1.0,
+      params={
+        "target_height": 0.78,
+        "command_name": "twist",
+        "std": 0.04,
+        "std_walking": 0.06,
+        "std_running": 0.08,
+        "walking_threshold": 0.5,
+        "running_threshold": 1.0,
       },
     ),
     "pose": RewardTermCfg(
@@ -298,8 +453,38 @@ def make_velocity_env_cfg() -> ManagerBasedRlEnvCfg:
         "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
         "command_name": "twist",
         "std_standing": {},  # Set per-robot.
+        "std_turning": {},  # Optional per-robot; defaults to std_walking.
         "std_walking": {},  # Set per-robot.
         "std_running": {},  # Set per-robot.
+        "weight_standing": 5.0,
+        "weight_turning": 1.0,
+        "weight_walking": 1.0,
+        "weight_running": 1.0,
+        "walking_threshold": 0.05,
+        "running_threshold": 1.5,
+      },
+    ),
+    "pose_upper_fixed": RewardTermCfg(
+      func=mdp.variable_posture,
+      weight=1.0,
+      params={
+        "asset_cfg": SceneEntityCfg(
+          "robot",
+          joint_names=(
+            r".*shoulder_roll.*",
+            r".*shoulder_yaw.*",
+            r".*wrist.*",
+          ),
+        ),
+        "command_name": "twist",
+        "std_standing": {".*": 0.15},
+        "std_turning": {".*": 0.15},
+        "std_walking": {".*": 0.15},
+        "std_running": {".*": 0.15},
+        "weight_standing": 1.0,
+        "weight_turning": 1.0,
+        "weight_walking": 1.0,
+        "weight_running": 1.0,
         "walking_threshold": 0.05,
         "running_threshold": 1.5,
       },
@@ -314,22 +499,130 @@ def make_velocity_env_cfg() -> ManagerBasedRlEnvCfg:
       weight=0.0,  # Override per-robot
       params={"sensor_name": "robot/root_angmom"},
     ),
-    "dof_pos_limits": RewardTermCfg(func=mdp.joint_pos_limits, weight=-1.0),
-    "action_rate_l2": RewardTermCfg(func=mdp.action_rate_l2, weight=-0.1),
-    "air_time": RewardTermCfg(
-      func=mdp.feet_air_time,
-      weight=0.0,  # Override per-robot.
+    "dof_pos_limits": RewardTermCfg(func=mdp.joint_pos_limits, weight=-5.0),
+    "action_rate_l2": RewardTermCfg(
+      func=mdp.action_rate_l2, weight=-1.0e-1, params={"normalize": True}
+    ),
+    # "joint_acc": RewardTermCfg(func=mdp.joint_acc_l2, weight=-2.5e-7),
+    "joint_effort_limit": RewardTermCfg(
+      weight=-1.0e-2,
+      func=mdp.joint_effort_limits,
+      params={"soft_ratio": 0.9, "power": 1.0},
+    ),
+    "joint_torque_rate": RewardTermCfg(
+      func=mdp.joint_torque_rate_l2,
+      weight=-1.0,
+      params={"per_substep": True, "reference_torque": False},
+    ),
+    "joint_power": RewardTermCfg(
+      func=envs_mdp.electrical_power_cost,
+      weight=-5.0e-5,
+      params={"asset_cfg": SceneEntityCfg("robot", joint_names=(".*",))},
+    ),
+    # "joint_torque": RewardTermCfg(func=mdp.joint_torques_l2, weight=-1.0e-7),
+    # "air_time": RewardTermCfg(
+    #   func=mdp.feet_air_time,
+    #   weight=0.0,  # Override per-robot.
+    #   params={
+    #     "sensor_name": "feet_ground_contact",
+    #     "threshold_min": 0.05,
+    #     "threshold_max": 0.5,
+    #     "command_name": "twist",
+    #     "command_threshold": 0.5,
+    #   },
+    # ),
+    # "gait_cycle": RewardTermCfg(
+    #   func=mdp.gait_cycle,
+    #   weight=0.0,  # Enable and tune per-task.
+    #   params={
+    #     "sensor_name": "feet_ground_contact",
+    #     "command_name": "twist",
+    #     "phase_target": 0.5,
+    #   },
+    # ),
+    "biped_air_time": RewardTermCfg(
+      func=mdp.biped_air_time,
+      weight=1.0,
       params={
         "sensor_name": "feet_ground_contact",
-        "threshold_min": 0.05,
-        "threshold_max": 0.5,
+        "target_air_time": 0.5,
+        "std": math.sqrt(0.1),
+        "std_turning": math.sqrt(0.4),
+        "std_sidewalk": math.sqrt(0.4),
+        "std_walking": math.sqrt(0.2),
+        "std_running": math.sqrt(0.3),
         "command_name": "twist",
-        "command_threshold": 0.5,
+        "command_threshold": 0.05,
+        "walking_threshold": 0.5,
+        "running_threshold": 1.0,
+        # Speed-branch landing cooldown.
+        # - < walking_threshold: post_landing_mask_steps_low_speed
+        # - walking_threshold, running_threshold: post_landing_mask_steps_high_speed
+        # - >= running_threshold: disabled
+        "post_landing_mask_steps_low_speed": 0,
+        "post_landing_mask_steps_high_speed": 0,
+        "symmetry_penalty_weight": 0.5,
+        "symmetry_ema_alpha": 0.1,
       },
     ),
+    "biped_first_swing_foot": RewardTermCfg(
+      func=mdp.biped_first_swing_foot,
+      weight=2.0,
+      params={
+        "sensor_name": "feet_ground_contact",
+        "command_name": "twist",
+        "command_threshold": 0.05,
+        "wrong_swing_penalty": 0.5,
+        "timeout_steps": ms2steps(
+          300
+        ),  # millisecond value converted to active control-step count.
+        "no_swing_penalty": 1.0,
+        "min_first_swing_air_time": 0.1,
+        "load_transfer_weight": 0.25,
+      },
+    ),
+    "biped_double_support_time": RewardTermCfg(
+      func=mdp.biped_double_support_time,
+      weight=1.0,
+      params={
+        "sensor_name": "feet_ground_contact",
+        "target_double_support_time": 0.125,
+        "std": math.sqrt(0.01),
+        "std_walking": math.sqrt(0.04),
+        "min_first_swing_air_time": 0.2,
+        "command_name": "twist",
+        "command_threshold": 0.05,
+        "walking_threshold": 0.5,
+        "running_threshold": 1.0,
+      },
+    ),
+    "biped_standing_stability": RewardTermCfg(
+      func=mdp.biped_standing_stability,
+      weight=1.0,
+      params={
+        "sensor_name": "feet_ground_contact",
+        "command_name": "twist",
+        "command_threshold": 0.05,
+        "standing_weight": 2.0,
+        "standing_air_penalty_weight": 0.5,
+        "standing_action_rate_weight": 0.1,
+      },
+    ),
+    # "toe_off_push": RewardTermCfg(
+    #   func=mdp.toe_off_push,
+    #   weight=0.0,
+    #   params={
+    #     "sensor_name": "feet_ground_contact",
+    #     "command_name": "twist",
+    #     "command_threshold": 0.05,
+    #     "push_window_steps": ms2steps(40),
+    #     "eps": 1.0e-6,
+    #     "max_reward": 1.0,
+    #   },
+    # ),
     "foot_clearance": RewardTermCfg(
       func=mdp.feet_clearance,
-      weight=-2.0,
+      weight=-5.0,
       params={
         "target_height": 0.1,
         "height_sensor_name": "foot_height_scan",
@@ -338,9 +631,22 @@ def make_velocity_env_cfg() -> ManagerBasedRlEnvCfg:
         "asset_cfg": SceneEntityCfg("robot", site_names=()),  # Set per-robot.
       },
     ),
+    "knee_height": RewardTermCfg(
+      func=mdp.knee_height,
+      weight=0.0,
+      params={
+        "target_height_delta": 0.04,
+        "up_velocity_threshold": 0.05,
+        "front_position_threshold": 0.0,
+        "command_name": "twist",
+        "command_threshold": 0.05,
+        "asset_cfg": SceneEntityCfg("robot", body_names=()),  # Set per-robot.
+        "reference_asset_cfg": SceneEntityCfg("robot", body_names=()),  # Set per-robot.
+      },
+    ),
     "foot_swing_height": RewardTermCfg(
       func=mdp.feet_swing_height,
-      weight=-0.25,
+      weight=-1.0,
       params={
         "sensor_name": "feet_ground_contact",
         "height_sensor_name": "foot_height_scan",
@@ -359,15 +665,535 @@ def make_velocity_env_cfg() -> ManagerBasedRlEnvCfg:
         "asset_cfg": SceneEntityCfg("robot", site_names=()),  # Set per-robot.
       },
     ),
-    "soft_landing": RewardTermCfg(
+    "foot_center_noncontact": RewardTermCfg(
+      func=mdp.foot_center_noncontact,
+      weight=-1.0,
+      params={
+        "foot_sensor_name": "feet_ground_contact",
+        "center_sensor_name": "feet_center_contact",
+      },
+    ),
+    "foot_landing": RewardTermCfg(
       func=mdp.soft_landing,
-      weight=-1e-5,
+      weight=-1e-3,
       params={
         "sensor_name": "feet_ground_contact",
         "command_name": "twist",
         "command_threshold": 0.05,
       },
     ),
+    "foot_force_momentum": RewardTermCfg(
+      func=mdp.foot_force_momentum,
+      weight=-0.0,
+      params={
+        "sensor_name": "feet_ground_contact",
+        "force_threshold": 0.1,
+        "asset_cfg": SceneEntityCfg("robot", site_names=()),  # Set per-robot.
+      },
+    ),
+    "foot_force_rate": RewardTermCfg(
+      func=mdp.foot_force_rate,
+      weight=-0.1,
+      params={
+        "sensor_name": "feet_ground_contact",
+        "force_rate_threshold": 0.0,
+      },
+    ),
+    "foot_lateral_distance": RewardTermCfg(
+      func=mdp.foot_lateral_distance,
+      weight=-0.1,
+      params={
+        "soft_factor": 0.5,
+        "barrier_start_factor": 0.75,
+        "barrier_delta": 0.025,
+        "frame": "foot",  # "root" | "pelvis" | "foot"
+        "asset_cfg": SceneEntityCfg(
+          "robot", site_names=()
+        ),  # Set per-robot. If frame is "pelvis", body_names=("pelvis",) should be set.
+      },
+    ),
+    # "foot_flat": RewardTermCfg(
+    #   func=mdp.feet_orientation_flat,
+    #   weight=0.25,
+    #   params={
+    #     "std": math.sqrt(0.2),
+    #     "sensor_name": "feet_ground_contact",
+    #     "stance_force_ratio": 0.75,
+    #     "target_height": 0.05,
+    #     "settle_steps": ms2steps(200),
+    #     "asset_cfg": SceneEntityCfg("robot", body_names=()),  # Set per-robot.
+    #   },
+    # ),
+    "heelstrike_foot_pitch_pattern": RewardTermCfg(
+      func=mdp.foot_pitch_pattern,
+      weight=0.25,
+      params={
+        "sensor_name": "feet_ground_contact",
+        "command_name": "twist",
+        "mode": "heel",
+        "target_angle_deg": 15.0,  # 목표 발 기울기 (deg)
+        "std": math.sin(math.radians(5.0)),  # 허용 발 기울기 (sin of angle)
+        "target_error_penalty_weight": 5.0,
+        "running_threshold": 1.0,  # heel-strike 패턴 보상 비활성화 (m/s)
+        "window_steps": ms2steps(200),  # millisecond posture buffer
+        "temporal_std_steps": ms2steps(
+          100
+        ),  # legacy event-only window; post reward uses current state
+        "post_reward_steps": ms2steps(200),  # event step + 4 post-event control steps
+        "post_reward_std_steps": ms2steps(
+          100
+        ),  # meaningful through ~3 steps, then decays sharply
+        "min_air_steps": ms2steps(200),  # 직전 공중 구간이 너무 짧은 landing 무시
+        "symmetry_penalty_weight": 0.5,
+        "symmetry_ema_alpha": 0.05,
+        "asset_cfg": SceneEntityCfg("robot", body_names=()),  # Set per-robot.
+      },
+    ),
+    "toeoff_foot_pitch_pattern": RewardTermCfg(
+      func=mdp.foot_pitch_pattern,
+      weight=0.25,
+      params={
+        "sensor_name": "feet_ground_contact",
+        "command_name": "twist",
+        "mode": "toe",
+        "target_angle_deg": 45.0,  # 목표 발 기울기 (deg)
+        "std": math.sin(math.radians(30.0)),  # 허용 발 기울기 (sin of angle)
+        "target_error_penalty_weight": 5.0,
+        "window_steps": ms2steps(200),  # millisecond posture buffer
+        "temporal_std_steps": ms2steps(
+          100
+        ),  # legacy event-only window; post reward uses current state
+        "post_reward_steps": ms2steps(200),  # event step + 4 post-event control steps
+        "post_reward_std_steps": ms2steps(
+          100
+        ),  # meaningful through ~3 steps, then decays sharply
+        "min_contact_steps": ms2steps(40),  # 직전 접촉 구간이 매우 짧은 liftoff만 무시
+        "min_air_steps": ms2steps(40),  # standing→첫 발 떼기 무시
+        "symmetry_penalty_weight": 0.5,
+        "symmetry_ema_alpha": 0.05,
+        "asset_cfg": SceneEntityCfg("robot", body_names=()),  # Set per-robot.
+      },
+    ),
+    # Unlike foot_pitch_pattern, these terms constrain the ankle pitch joint
+    # itself so the policy cannot satisfy foot-body pitch using only upstream
+    # leg posture.
+    # "heelstrike_ankle_pitch_pattern": RewardTermCfg(
+    #   func=mdp.joint_gait_pattern,
+    #   weight=0.25,
+    #   params={
+    #     "sensor_name": "feet_ground_contact",
+    #     "command_name": "twist",
+    #     "mode": "heel",
+    #     "target_angle_deg": 0.0,
+    #     "std": math.radians(2.5),
+    #     "std_running": math.radians(2.5),
+    #     "target_error_penalty_weight": 5.0,
+    #     "running_threshold": 1.0,
+    #     "window_steps": ms2steps(200),
+    #     "temporal_std_steps": ms2steps(100),
+    #     "post_reward_steps": ms2steps(200),
+    #     "post_reward_std_steps": ms2steps(100),
+    #     "min_air_steps": ms2steps(200),
+    #     "axis_signs": 1.0,
+    #     "symmetry_penalty_weight": 0.5,
+    #     "symmetry_ema_alpha": 0.05,
+    #     "asset_cfg": SceneEntityCfg("robot", joint_names=()),
+    #   },
+    # ),
+    # "toeoff_ankle_pitch_pattern": RewardTermCfg(
+    #   func=mdp.joint_gait_pattern,
+    #   weight=0.25,
+    #   params={
+    #     "sensor_name": "feet_ground_contact",
+    #     "command_name": "twist",
+    #     "mode": "toe",
+    #     "target_angle_deg": 20.0,
+    #     "std": math.radians(10.0),
+    #     "std_running": math.radians(10.0),
+    #     "target_error_penalty_weight": 5.0,
+    #     "running_threshold": 1.0,
+    #     "window_steps": ms2steps(200),
+    #     "temporal_std_steps": ms2steps(100),
+    #     "post_reward_steps": ms2steps(200),
+    #     "post_reward_std_steps": ms2steps(100),
+    #     "min_contact_steps": ms2steps(40),
+    #     "min_air_steps": ms2steps(40),
+    #     "axis_signs": 1.0,
+    #     "symmetry_penalty_weight": 0.5,
+    #     "symmetry_ema_alpha": 0.05,
+    #     "asset_cfg": SceneEntityCfg("robot", joint_names=()),
+    #   },
+    # ),
+    # joint_gait_pattern sign convention (after axis_signs correction):
+    #   positive target_angle_deg = flexion (knee bend / hip forward swing)
+    #   negative target_angle_deg = extension (hip backward push)
+    # Only active for forward commands; backward is left to free learning.
+    "heelstrike_knee_pattern": RewardTermCfg(
+      func=mdp.joint_gait_pattern,
+      weight=0.25,
+      params={
+        "sensor_name": "feet_ground_contact",
+        "command_name": "twist",
+        "mode": "heel",
+        "target_angle_deg": 10.0,
+        "std": math.radians(10.0),
+        "std_running": math.radians(5.0),
+        "target_error_penalty_weight": 5.0,
+        "running_threshold": 1.0,
+        "window_steps": ms2steps(200),  # millisecond joint-angle buffer
+        "temporal_std_steps": ms2steps(
+          100
+        ),  # legacy event-only window; post reward uses current state
+        "post_reward_steps": ms2steps(200),  # event step + 4 post-event control steps
+        "post_reward_std_steps": ms2steps(
+          100
+        ),  # meaningful through ~3 steps, then decays sharply
+        "min_air_steps": ms2steps(200),  # 직전 공중 구간이 너무 짧은 landing 무시
+        "axis_signs": 1.0,
+        "symmetry_penalty_weight": 0.5,
+        "symmetry_ema_alpha": 0.05,
+        "asset_cfg": SceneEntityCfg("robot", joint_names=()),  # Set per-robot.
+      },
+    ),
+    "toeoff_knee_pattern": RewardTermCfg(
+      func=mdp.joint_gait_pattern,
+      weight=0.25,
+      params={
+        "sensor_name": "feet_ground_contact",
+        "command_name": "twist",
+        "mode": "toe",
+        "target_angle_deg": 30.0,
+        "std": math.radians(25.0),
+        "std_running": math.radians(20.0),
+        "target_error_penalty_weight": 5.0,
+        "running_threshold": 1.0,
+        "window_steps": ms2steps(200),  # millisecond joint-angle buffer
+        "temporal_std_steps": ms2steps(
+          100
+        ),  # legacy event-only window; post reward uses current state
+        "post_reward_steps": ms2steps(200),  # event step + 4 post-event control steps
+        "post_reward_std_steps": ms2steps(
+          100
+        ),  # meaningful through ~3 steps, then decays sharply
+        "min_contact_steps": ms2steps(40),  # 직전 접촉 구간이 매우 짧은 liftoff만 무시
+        "min_air_steps": ms2steps(40),  # standing→첫 발 떼기 무시
+        "axis_signs": 1.0,
+        "symmetry_penalty_weight": 0.5,
+        "symmetry_ema_alpha": 0.05,
+        "asset_cfg": SceneEntityCfg("robot", joint_names=()),  # Set per-robot.
+      },
+    ),
+    "heelstrike_hip_pitch_pattern": RewardTermCfg(
+      func=mdp.joint_gait_pattern,
+      weight=0.25,
+      params={
+        "sensor_name": "feet_ground_contact",
+        "command_name": "twist",
+        "mode": "heel",
+        "target_angle_deg": 30.0,
+        "std": math.radians(10.0),
+        "std_running": math.radians(5.0),
+        "target_error_penalty_weight": 5.0,
+        "running_threshold": 1.0,
+        "window_steps": ms2steps(200),  # millisecond joint-angle buffer
+        "temporal_std_steps": ms2steps(
+          100
+        ),  # legacy event-only window; post reward uses current state
+        "post_reward_steps": ms2steps(200),  # event step + 4 post-event control steps
+        "post_reward_std_steps": ms2steps(
+          100
+        ),  # meaningful through ~3 steps, then decays sharply
+        "min_air_steps": ms2steps(200),  # 직전 공중 구간이 너무 짧은 landing 무시
+        "axis_signs": 1.0,
+        "symmetry_penalty_weight": 0.5,
+        "symmetry_ema_alpha": 0.05,
+        "asset_cfg": SceneEntityCfg("robot", joint_names=()),  # Set per-robot.
+      },
+    ),
+    "toeoff_hip_pitch_pattern": RewardTermCfg(
+      func=mdp.joint_gait_pattern,
+      weight=0.25,
+      params={
+        "sensor_name": "feet_ground_contact",
+        "command_name": "twist",
+        "mode": "toe",
+        "target_angle_deg": -10.0,
+        "std": math.radians(5.0),
+        "std_running": math.radians(2.5),
+        "target_error_penalty_weight": 5.0,
+        "running_threshold": 1.0,
+        "window_steps": ms2steps(200),  # millisecond joint-angle buffer
+        "temporal_std_steps": ms2steps(
+          100
+        ),  # legacy event-only window; post reward uses current state
+        "post_reward_steps": ms2steps(200),  # event step + 4 post-event control steps
+        "post_reward_std_steps": ms2steps(
+          100
+        ),  # meaningful through ~3 steps, then decays sharply
+        "min_contact_steps": ms2steps(40),  # 직전 접촉 구간이 매우 짧은 liftoff만 무시
+        "min_air_steps": ms2steps(40),  # standing→첫 발 떼기 무시
+        "axis_signs": 1.0,
+        "symmetry_penalty_weight": 0.5,
+        "symmetry_ema_alpha": 0.05,
+        "asset_cfg": SceneEntityCfg("robot", joint_names=()),  # Set per-robot.
+      },
+    ),
+    "heelstrike_hip_roll_pattern": RewardTermCfg(
+      func=mdp.joint_gait_pattern,
+      weight=0.25,
+      params={
+        "sensor_name": "feet_ground_contact",
+        "command_name": "twist",
+        "mode": "heel",
+        "target_angle_deg": 2.5,
+        "std": math.radians(2.5),
+        "std_running": math.radians(2.5),
+        "target_error_penalty_weight": 5.0,
+        "running_threshold": 1.0,
+        "window_steps": ms2steps(200),
+        "temporal_std_steps": ms2steps(100),
+        "post_reward_steps": ms2steps(200),
+        "post_reward_std_steps": ms2steps(100),
+        "min_air_steps": ms2steps(200),
+        "command_threshold": 0.05,
+        "forward_only": True,
+        "axis_signs": 1.0,
+        "symmetry_penalty_weight": 0.5,
+        "symmetry_ema_alpha": 0.05,
+        "asset_cfg": SceneEntityCfg("robot", joint_names=()),
+      },
+    ),
+    "toeoff_hip_roll_pattern": RewardTermCfg(
+      func=mdp.joint_gait_pattern,
+      weight=0.25,
+      params={
+        "sensor_name": "feet_ground_contact",
+        "command_name": "twist",
+        "mode": "toe",
+        "target_angle_deg": 0.0,
+        "std": math.radians(2.5),
+        "std_running": math.radians(2.5),
+        "target_error_penalty_weight": 5.0,
+        "running_threshold": 1.0,
+        "window_steps": ms2steps(200),
+        "temporal_std_steps": ms2steps(100),
+        "post_reward_steps": ms2steps(200),
+        "post_reward_std_steps": ms2steps(100),
+        "min_contact_steps": ms2steps(40),
+        "min_air_steps": ms2steps(40),
+        "command_threshold": 0.05,
+        "forward_only": True,
+        "axis_signs": 1.0,
+        "symmetry_penalty_weight": 0.5,
+        "symmetry_ema_alpha": 0.05,
+        "asset_cfg": SceneEntityCfg("robot", joint_names=()),
+      },
+    ),
+    "heelstrike_hip_yaw_pattern": RewardTermCfg(
+      func=mdp.joint_gait_pattern,
+      weight=0.25,
+      params={
+        "sensor_name": "feet_ground_contact",
+        "command_name": "twist",
+        "mode": "heel",
+        "target_angle_deg": 0.0,
+        "std": math.radians(2.5),
+        "std_running": math.radians(2.5),
+        "target_error_penalty_weight": 5.0,
+        "running_threshold": 1.0,
+        "window_steps": ms2steps(200),
+        "temporal_std_steps": ms2steps(100),
+        "post_reward_steps": ms2steps(200),
+        "post_reward_std_steps": ms2steps(100),
+        "min_air_steps": ms2steps(200),
+        "command_threshold": 0.05,
+        "forward_only": True,
+        "axis_signs": 1.0,
+        "symmetry_penalty_weight": 0.5,
+        "symmetry_ema_alpha": 0.05,
+        "asset_cfg": SceneEntityCfg("robot", joint_names=()),
+      },
+    ),
+    "toeoff_hip_yaw_pattern": RewardTermCfg(
+      func=mdp.joint_gait_pattern,
+      weight=0.25,
+      params={
+        "sensor_name": "feet_ground_contact",
+        "command_name": "twist",
+        "mode": "toe",
+        "target_angle_deg": 0.0,
+        "std": math.radians(2.5),
+        "std_running": math.radians(2.5),
+        "target_error_penalty_weight": 5.0,
+        "running_threshold": 1.0,
+        "window_steps": ms2steps(200),
+        "temporal_std_steps": ms2steps(100),
+        "post_reward_steps": ms2steps(200),
+        "post_reward_std_steps": ms2steps(100),
+        "min_contact_steps": ms2steps(40),
+        "min_air_steps": ms2steps(40),
+        "command_threshold": 0.05,
+        "forward_only": True,
+        "axis_signs": 1.0,
+        "symmetry_penalty_weight": 0.5,
+        "symmetry_ema_alpha": 0.05,
+        "asset_cfg": SceneEntityCfg("robot", joint_names=()),
+      },
+    ),
+    "heelstrike_shoulder_pitch_pattern": RewardTermCfg(
+      func=mdp.joint_gait_pattern,
+      weight=0.25,
+      params={
+        "sensor_name": "feet_ground_contact",
+        "command_name": "twist",
+        "mode": "heel",
+        "target_angle_deg": -15.0,
+        "std": math.radians(10.0),
+        "std_running": math.radians(5.0),
+        "target_error_penalty_weight": 5.0,
+        "running_threshold": 1.0,
+        "window_steps": ms2steps(200),
+        "temporal_std_steps": ms2steps(100),
+        "post_reward_steps": ms2steps(200),
+        "post_reward_std_steps": ms2steps(100),
+        "min_air_steps": ms2steps(200),
+        "axis_signs": 1.0,
+        "symmetry_penalty_weight": 0.5,
+        "symmetry_ema_alpha": 0.05,
+        "asset_cfg": SceneEntityCfg("robot", joint_names=()),
+      },
+    ),
+    "toeoff_shoulder_pitch_pattern": RewardTermCfg(
+      func=mdp.joint_gait_pattern,
+      weight=0.25,
+      params={
+        "sensor_name": "feet_ground_contact",
+        "command_name": "twist",
+        "mode": "toe",
+        "target_angle_deg": 0.0,
+        "std": math.radians(5.0),
+        "std_running": math.radians(2.5),
+        "target_error_penalty_weight": 5.0,
+        "running_threshold": 1.0,
+        "window_steps": ms2steps(200),
+        "temporal_std_steps": ms2steps(100),
+        "post_reward_steps": ms2steps(200),
+        "post_reward_std_steps": ms2steps(100),
+        "min_contact_steps": ms2steps(40),
+        "min_air_steps": ms2steps(40),
+        "axis_signs": 1.0,
+        "symmetry_penalty_weight": 0.5,
+        "symmetry_ema_alpha": 0.05,
+        "asset_cfg": SceneEntityCfg("robot", joint_names=()),
+      },
+    ),
+    "heelstrike_elbow_pattern": RewardTermCfg(
+      func=mdp.joint_gait_pattern,
+      weight=0.25,
+      params={
+        "sensor_name": "feet_ground_contact",
+        "command_name": "twist",
+        "mode": "heel",
+        "target_angle_deg": 35.0,
+        "std": math.radians(10.0),
+        "std_running": math.radians(60.0),
+        "target_error_penalty_weight": 0.0,
+        "running_threshold": 1.0,
+        "window_steps": ms2steps(500),
+        "temporal_std_steps": ms2steps(400.0),
+        "post_reward_steps": ms2steps(200),
+        "post_reward_std_steps": ms2steps(100),
+        "min_air_steps": ms2steps(200),
+        "axis_signs": 1.0,
+        "symmetry_penalty_weight": 0.5,
+        "symmetry_ema_alpha": 0.05,
+        "asset_cfg": SceneEntityCfg("robot", joint_names=()),
+      },
+    ),
+    "toeoff_elbow_pattern": RewardTermCfg(
+      func=mdp.joint_gait_pattern,
+      weight=0.25,
+      params={
+        "sensor_name": "feet_ground_contact",
+        "command_name": "twist",
+        "mode": "toe",
+        "target_angle_deg": -10.0,
+        "std": math.radians(20.0),
+        "std_running": math.radians(10.0),
+        "target_error_penalty_weight": 5.0,
+        "running_threshold": 1.0,
+        "window_steps": ms2steps(500),
+        "temporal_std_steps": ms2steps(400.0),
+        "post_reward_steps": ms2steps(200),
+        "post_reward_std_steps": ms2steps(100),
+        "min_contact_steps": ms2steps(40),
+        "min_air_steps": ms2steps(40),
+        "axis_signs": 1.0,
+        "symmetry_penalty_weight": 0.5,
+        "symmetry_ema_alpha": 0.05,
+        "asset_cfg": SceneEntityCfg("robot", joint_names=()),
+      },
+    ),
+    "thigh_swing_pattern": RewardTermCfg(
+      func=mdp.link_swing_pattern,
+      weight=1.0,
+      params={
+        "sensor_name": "feet_ground_contact",
+        "command_name": "twist",
+        "lin_vel_y_threshold": 0.05,
+        "yaw_threshold": 0.05,
+        "target_angle_deg": 0.0,
+        "std": math.sin(math.radians(1.0)),
+        "symmetry_penalty_weight": 0.5,
+        "symmetry_ema_alpha": 0.1,
+        "axis_signs": 1.0,
+        "asset_cfg": SceneEntityCfg("robot", body_names=()),  # Set per-robot.
+      },
+    ),
+    "shank_swing_pattern": RewardTermCfg(
+      func=mdp.link_swing_pattern,
+      weight=1.0,
+      params={
+        "sensor_name": "feet_ground_contact",
+        "command_name": "twist",
+        "lin_vel_y_threshold": 0.05,
+        "yaw_threshold": 0.05,
+        "target_angle_deg": 0.0,
+        "std": math.sin(math.radians(1.0)),
+        "symmetry_penalty_weight": 0.5,
+        "symmetry_ema_alpha": 0.1,
+        "axis_signs": 1.0,
+        "asset_cfg": SceneEntityCfg("robot", body_names=()),  # Set per-robot.
+      },
+    ),
+    # "startup_pitch_upright": RewardTermCfg(
+    #   func=mdp.startup_pitch_upright,
+    #   weight=-1.0,
+    #   params={
+    #     "command_name": "twist",
+    #     "command_threshold": 0.05,
+    #     "pre_window_steps": ms2steps(100),
+    #     "post_window_steps": ms2steps(100),
+    #     "std": math.sin(math.radians(5)),
+    #     "axis": 0,
+    #     "asset_cfg": SceneEntityCfg("robot", body_names=()),  # Set per-robot.
+    #   },
+    # ),
+    "self_collisions": RewardTermCfg(
+      func=mdp.self_collision_cost,
+      weight=-2.0,
+      params={"sensor_name": "self_collision"},
+    ),
+    # "is_terminated": RewardTermCfg(func=mdp.is_terminated, weight=-1.0),
+    # "stand_still": RewardTermCfg(
+    #   func=mdp.stand_still,
+    #   weight=-1.0,
+    #   params={
+    #     "command_name": "twist",
+    #     "command_threshold": 0.1,
+    #     "asset_cfg": SceneEntityCfg("robot", joint_names=".*"),
+    #   },
+    # ),
   }
 
   ##
@@ -380,6 +1206,11 @@ def make_velocity_env_cfg() -> ManagerBasedRlEnvCfg:
       func=mdp.bad_orientation,
       params={"limit_angle": math.radians(70.0)},
     ),
+    "base_height_low": TerminationTermCfg(
+      func=mdp.root_height_below_minimum,
+      params={"minimum_height": 0.25},
+    ),
+    "nan_detected": TerminationTermCfg(func=mdp.nan_detection),
     "out_of_terrain_bounds": TerminationTermCfg(
       func=mdp.out_of_terrain_bounds,
       time_out=True,
@@ -400,9 +1231,39 @@ def make_velocity_env_cfg() -> ManagerBasedRlEnvCfg:
       params={
         "command_name": "twist",
         "velocity_stages": [
-          {"step": 0, "lin_vel_x": (-1.0, 1.0), "ang_vel_z": (-0.5, 0.5)},
-          {"step": 5000 * 24, "lin_vel_x": (-1.5, 2.0), "ang_vel_z": (-0.7, 0.7)},
-          {"step": 10000 * 24, "lin_vel_x": (-2.0, 3.0)},
+          {
+            "step": 0,
+            "lin_vel_x": (0.0, 0.5),
+            "lin_vel_y": (-0.5, 0.5),
+            "ang_vel_z": (-0.5, 0.5),
+          },
+          {
+            "step": 2_500 * 24,
+            "lin_vel_x": (-0.5, 1.0),
+            "lin_vel_y": (-1.0, 1.0),
+            "ang_vel_z": (-1.0, 1.0),
+          },
+          {
+            "step": 5_000 * 24,
+            "lin_vel_x": (-1.0, 2.0),
+            "lin_vel_y": (-1.0, 1.0),
+            "ang_vel_z": (-1.5, 1.5),
+          },
+          {
+            "step": 10_000 * 24,
+            "lin_vel_x": (-1.5, 3.0),
+            "lin_vel_y": (-1.0, 1.0),
+            "ang_vel_z": (-3.0, 3.0),
+          },
+        ],
+        # "resampling_stages": [
+        #   {"step": 0, "resampling_time_range": (5.0, 10.0)},
+        #   {"step": 2_500 * 24, "resampling_time_range": (3.0, 8.0)},
+        # ],
+        "motion_mix_stages": [
+          {"step": 0, "rel_standing_envs": 1.0, "rel_turn_in_place_envs": 0.0},
+          {"step": 500 * 24, "rel_standing_envs": 0.1, "rel_turn_in_place_envs": 0.1},
+          # {"step": 1_000 * 24, "rel_standing_envs": 0.1, "rel_turn_in_place_envs": 0.1},
         ],
       },
     ),
@@ -412,7 +1273,7 @@ def make_velocity_env_cfg() -> ManagerBasedRlEnvCfg:
   # Assemble and return
   ##
 
-  return ManagerBasedRlEnvCfg(
+  cfg = ManagerBasedRlEnvCfg(
     scene=SceneCfg(
       terrain=TerrainEntityCfg(
         terrain_type="generator",
@@ -443,11 +1304,12 @@ def make_velocity_env_cfg() -> ManagerBasedRlEnvCfg:
       nconmax=35,
       njmax=1500,
       mujoco=MujocoCfg(
-        timestep=0.005,
+        timestep=VELOCITY_MUJOCO_TIMESTEP,
         iterations=10,
         ls_iterations=20,
       ),
     ),
-    decimation=4,
+    decimation=VELOCITY_DECIMATION,
     episode_length_s=20.0,
   )
+  return cfg

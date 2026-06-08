@@ -22,6 +22,10 @@ from mjlab.actuator.builtin_actuator import (
 from mjlab.actuator.builtin_actuator import (
   BuiltinPositionActuatorCfg as BuiltinPositionActuatorCfg,
 )
+
+# Aliases for KIMM-internal naming (BuiltinPd* ↔ BuiltinPosition*)
+BuiltinPdActuator = BuiltinPositionActuator
+BuiltinPdActuatorCfg = BuiltinPositionActuatorCfg
 from mjlab.actuator.builtin_actuator import (
   BuiltinVelocityActuator as BuiltinVelocityActuator,
 )
@@ -39,3 +43,25 @@ from mjlab.actuator.pd_actuator import IdealPdActuator as IdealPdActuator
 from mjlab.actuator.pd_actuator import IdealPdActuatorCfg as IdealPdActuatorCfg
 from mjlab.actuator.xml_actuator import XmlActuator as XmlActuator
 from mjlab.actuator.xml_actuator import XmlActuatorCfg as XmlActuatorCfg
+
+
+# Compat stubs for KIMM-internal Fourbar actuator (not present in mjlab core).
+# These satisfy import/isinstance checks from beom DR modules; the actuator
+# group is never instantiated through the public mjlab API, so isinstance
+# checks against these stubs are never True and the dependent code paths
+# stay dormant. Attributes are declared so type-checkers stay quiet.
+class FourbarPdActuator:  # type: ignore[no-redef]
+  motor_armature: object
+  default_motor_armature: object
+  force_limit: object
+  last_motor_torque: object
+
+  def set_motor_armature(self, *args: object, **kwargs: object) -> None: ...
+
+
+class FourbarPdActuatorCfg:  # type: ignore[no-redef]
+  pass
+
+
+class FourbarAnkleGroupCfg:  # type: ignore[no-redef]
+  pass

@@ -1,0 +1,207 @@
+{
+  "task_id": "Mjlab-Velocity-Flat-KIMM-P2",
+  "checkpoint_file": "/log/mjlab/rsl_rl/p2_velocity/2026-04-03_18-32-00_p2_velocity_guidedMoE/model_29999.pt",
+  "dataset_dir": "/ws/Jaebeom/pixi-mjlab/mjlab/src/mjlab/tasks/velocity/moe/output/p2_cmd_regime_collect_model29999_cmd1-20260406-143343",
+  "num_samples": 200000,
+  "regime_counts": {
+    "stand": 20639,
+    "turn": 29276,
+    "vx": 91367,
+    "vy": 58718
+  },
+  "num_shared_experts": 1,
+  "num_specialist_experts": 4,
+  "wrong_specialist_l2_by_regime": {
+    "stand": {
+      "expert0": 0.0,
+      "expert1": 3.1987483501434326,
+      "expert2": 1.82808518409729,
+      "expert3": 2.202274799346924
+    },
+    "turn": {
+      "expert0": 3.2212984561920166,
+      "expert1": 0.0,
+      "expert2": 1.4159536361694336,
+      "expert3": 1.55556321144104
+    },
+    "vx": {
+      "expert0": 3.2874083518981934,
+      "expert1": 0.9358773827552795,
+      "expert2": 0.0,
+      "expert3": 0.6832770109176636
+    },
+    "vy": {
+      "expert0": 3.3783974647521973,
+      "expert1": 1.2050085067749023,
+      "expert2": 0.7078065276145935,
+      "expert3": 0.0
+    }
+  },
+  "shared_only_l2_by_regime": {
+    "stand": 2.9991183280944824,
+    "turn": 4.784255504608154,
+    "vx": 5.871057987213135,
+    "vy": 5.999108791351318
+  },
+  "full_vs_correct_l2_by_regime": {
+    "stand": 2.483795404434204,
+    "turn": 3.241684675216675,
+    "vx": 3.659456253051758,
+    "vy": 3.8143346309661865
+  },
+  "pca_centroids_2d": {
+    "shared0": [
+      -602.5707397460938,
+      -0.19615140557289124
+    ],
+    "expert0": [
+      149.54124450683594,
+      -60.817623138427734
+    ],
+    "expert1": [
+      178.4725799560547,
+      39.156105041503906
+    ],
+    "expert2": [
+      124.5269775390625,
+      19.979442596435547
+    ],
+    "expert3": [
+      150.03334045410156,
+      1.8752371072769165
+    ]
+  },
+  "pca_centroids_2d_shared_only": {
+    "shared0": [
+      0.0001932159357238561,
+      0.0001319549628533423
+    ]
+  },
+  "pca_centroids_2d_combined": {
+    "shared0": [
+      -602.5707397460938,
+      -0.19615140557289124
+    ],
+    "expert0": [
+      149.54124450683594,
+      -60.817623138427734
+    ],
+    "expert1": [
+      178.4725799560547,
+      39.156105041503906
+    ],
+    "expert2": [
+      124.5269775390625,
+      19.979442596435547
+    ],
+    "expert3": [
+      150.03334045410156,
+      1.8752371072769165
+    ]
+  },
+  "pca_centroids_2d_specialist_only": {
+    "expert0": [
+      50.472042083740234,
+      -40.56167984008789
+    ],
+    "expert1": [
+      -50.17066192626953,
+      -35.927459716796875
+    ],
+    "expert2": [
+      6.054746150970459,
+      77.35369110107422
+    ],
+    "expert3": [
+      -6.356399059295654,
+      -0.865223228931427
+    ]
+  },
+  "pca_centroids_2d_specialist_matched_by_regime": {
+    "stand": [
+      -81.36811828613281,
+      -8.821277618408203
+    ],
+    "turn": [
+      26.656177520751953,
+      64.13188934326172
+    ],
+    "vx": [
+      43.99708938598633,
+      -69.43927001953125
+    ],
+    "vy": [
+      10.716621398925781,
+      14.12566089630127
+    ]
+  },
+  "centroid_stats_combined": {
+    "num_groups": 5,
+    "intra_radius": 123.7357681274414,
+    "intra_radius_by_group": {
+      "shared0": 294.8348083496094,
+      "expert0": 93.555908203125,
+      "expert1": 70.88238525390625,
+      "expert2": 81.72039031982422,
+      "expert3": 77.68534851074219
+    },
+    "inter_centroid_distance": {
+      "mean": 374.82766647338866,
+      "min": 102.01050567626953,
+      "max": 784.0318603515625
+    },
+    "separation_ratio": 3.0292588161519767,
+    "separation_margin": 251.09189834594724
+  },
+  "centroid_stats_specialist_only": {
+    "num_groups": 4,
+    "intra_radius": 80.96100807189941,
+    "intra_radius_by_group": {
+      "expert0": 93.555908203125,
+      "expert1": 70.88238525390625,
+      "expert2": 81.72039031982422,
+      "expert3": 77.68534851074219
+    },
+    "inter_centroid_distance": {
+      "mean": 120.2078742980957,
+      "min": 102.01050567626953,
+      "max": 135.10198974609375
+    },
+    "separation_ratio": 1.4847625685606847,
+    "separation_margin": 39.24686622619629
+  },
+  "centroid_stats_specialist_matched_by_regime": {
+    "num_groups": 4,
+    "intra_radius": 46.584449768066406,
+    "intra_radius_by_group": {
+      "stand": 88.2183837890625,
+      "turn": 35.47273635864258,
+      "vx": 24.253738403320312,
+      "vy": 38.392940521240234
+    },
+    "inter_centroid_distance": {
+      "mean": 126.62689463297527,
+      "min": 108.08891296386719,
+      "max": 140.75621032714844
+    },
+    "separation_ratio": 2.718222395314796,
+    "separation_margin": 80.04244486490886
+  },
+  "centroid_stats_shared_by_regime": {
+    "num_groups": 4,
+    "intra_radius": 214.90569305419922,
+    "intra_radius_by_group": {
+      "stand": 121.56443786621094,
+      "turn": 198.0655975341797,
+      "vx": 255.08529663085938,
+      "vy": 284.9074401855469
+    },
+    "inter_centroid_distance": {
+      "mean": 287.18598715464276,
+      "min": 28.919343948364258,
+      "max": 520.248779296875
+    },
+    "separation_ratio": 1.3363349433568261,
+    "separation_margin": 72.28029410044354
+  }
+}

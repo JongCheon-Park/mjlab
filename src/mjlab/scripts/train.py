@@ -163,6 +163,12 @@ def run_train(task_id: str, cfg: TrainConfig, log_dir: Path) -> None:
   if rank == 0:
     dump_yaml(log_dir / "params" / "env.yaml", env_cfg)
     dump_yaml(log_dir / "params" / "agent.yaml", agent_cfg)
+    # Snapshot reward-affecting source files + write human-readable summary.md
+    # so any future user can identify and roll back this run without parsing
+    # the full git diff.
+    from mjlab.utils.run_snapshot import snapshot_run
+
+    snapshot_run(log_dir, task_id, cfg.env, cfg.agent)
 
   runner = runner_cls(env, agent_cfg, str(log_dir), device, **runner_kwargs)
 

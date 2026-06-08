@@ -1,0 +1,492 @@
+<robot name="Diden Walker" xmlns:xacro="http://www.ros.org/wiki/xacro">
+    <material name="black">
+      <color rgba="0.0 0.0 0.0 1.0"/>
+    </material>   
+    <material name="blue">
+        <color rgba="0.0 0.0 0.8 1.0"/>
+    </material>
+    <material name="green">
+        <color rgba="0.0 0.8 0.0 1.0"/>
+    </material>
+    <material name="grey">
+        <color rgba="0.2 0.2 0.2 1.0"/>
+    </material>
+    <material name="silver">
+        <color rgba="0.913725490196 0.913725490196 0.847058823529 1.0"/>
+    </material>
+    <material name="orange">
+        <color rgba="1.0 0.423529411765 0.0392156862745 1.0"/>
+    </material>
+    <material name="brown">
+        <color rgba="0.870588235294 0.811764705882 0.764705882353 1.0"/>
+    </material>
+    <material name="red">
+        <color rgba="0.8 0.0 0.0 1.0"/>
+    </material>
+    <material name="white">
+        <color rgba="1.0 1.0 1.0 1.0"/>
+    </material>
+
+<!-- Pelvis -->
+    <link name="Pelvis">
+        <visual>
+            <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
+            <geometry>
+                <mesh filename="Diden_Walker_Simplified_Pelvis_verD1_20260317.stl"/>
+            </geometry>
+            <material name="grey"/>
+        </visual>
+        <collision>
+            <origin rpy="1.57080 0.0 0.0" xyz="0.0 0.0 0.0"/>
+            <geometry>
+                <cylinder radius="0.068" length="0.17"/>
+            </geometry>
+        </collision>
+        <collision>
+            <origin rpy="1.57080 0.0 0.0" xyz="0.0 0.127 0.205"/>
+            <geometry>
+                <cylinder radius="0.058" length="0.08"/>
+            </geometry>
+        </collision>
+        <inertial>
+            <origin rpy="0.0 0.0 0.0" xyz="-0.00089 0.03229 0.06915"/>
+            <mass value="8.26739"/>
+            <inertia ixx="0.12137" ixy="-0.00047" ixz="-0.00086" iyy="0.08211" iyz="0.03643" izz="0.05623"/>
+        </inertial>
+    </link>
+<!-- Pelvis -->
+
+<!-- Left leg -->.
+    <joint name="00_left_hip_pitch_joint" type="revolute">
+        <origin rpy="0.0 0.0 0.0" xyz="0.0 0.088 0.0"/>
+        <parent link="Pelvis"/>
+        <child link="Left_HP2HR"/>
+        <axis xyz="0 1 0"/>
+        <dynamics rotor_inertia="0.000331"/>
+        <limit effort="356.39" velocity="9.6675" lower="-1.65806" upper="1.65806"/>
+    </joint>
+    <link name="Left_HP2HR">
+        <visual>
+            <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
+            <geometry>
+                <mesh filename="Diden_Walker_Simplified_HP2HR_Left_verD1_20260317.stl"/>
+            </geometry>
+            <material name="grey"/>
+        </visual>
+        <collision>
+            <origin rpy="0.0 -1.57080 0.0" xyz="0.0 0.05775 -0.06"/>
+            <geometry>
+                <cylinder radius="0.058" length="0.107"/>
+            </geometry>
+            <material name="grey"/>
+        </collision>
+        <inertial>
+            <origin rpy="0 0 0" xyz="0.00550 0.05030 -0.05367"/>
+            <mass value="2.62970"/>
+            <inertia ixx="0.00491" ixy="0.00020" ixz="-0.00011" iyy="0.00371" iyz="-0.00060" izz="0.00373"/>
+        </inertial>
+    </link>
+  
+    <joint name="01_left_hip_roll_joint" type="revolute">
+        <origin rpy="0.0 0.0 0.0" xyz="0.0 0.05775 -0.06"/>
+        <parent link="Left_HP2HR"/>
+        <child link="Left_HR2HY"/>
+        <axis xyz="1 0 0"/>
+        <dynamics rotor_inertia="0.000331"/>
+        <limit effort="356.39" velocity="9.6675" lower="-0.523599" upper="2.09440"/>
+    </joint>
+    <link name="Left_HR2HY">
+        <visual>
+            <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
+            <geometry>
+                <mesh filename="Diden_Walker_Simplified_HR2HY_Left_verD1_20260317.stl"/>
+            </geometry>
+            <material name="grey"/>
+        </visual>
+        <collision>
+            <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 -0.115"/>
+            <geometry>
+                <cylinder radius="0.058" length="0.09"/>
+            </geometry>
+        </collision>
+        <inertial>
+            <origin rpy="0 0 0" xyz="0.00203 0.00071 -0.09162"/>
+            <mass value="1.55288"/>
+            <inertia ixx="0.00522" ixy="0.00002" ixz="0.00027" iyy="0.00644" iyz="0.00002" izz="0.00359"/>
+        </inertial>
+    </link>
+
+    <joint name="02_left_hip_yaw_joint" type="revolute">
+        <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 -0.16"/>
+        <parent link="Left_HR2HY"/>
+        <child link="Left_HY2K"/>
+        <axis xyz="0 0 1"/>
+        <dynamics rotor_inertia="0.000331"/>
+        <limit effort="356.39" velocity="9.6675" lower="-1.57080" upper="1.57080"/>
+    </joint>
+    <link name="Left_HY2K">
+        <visual>
+            <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
+            <geometry>
+                <mesh filename="Diden_Walker_Simplified_HY2K_Left_verD1_20260317.stl"/>
+            </geometry>
+            <material name="grey"/>
+        </visual>
+        <collision>
+            <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 -0.049"/>
+            <geometry>
+                <cylinder radius="0.058" length="0.098"/>
+            </geometry>
+        </collision>
+        <collision>
+            <origin rpy="1.57080 0.0 0.0" xyz="0.0 0.0 -0.16"/>
+            <geometry>
+                <cylinder radius="0.058" length="0.116"/>
+            </geometry>
+        </collision>
+        <inertial>
+            <origin rpy="0 0 0" xyz="0.00305 0.00355 -0.10302"/>
+            <mass value="5.00840"/>
+            <inertia ixx="0.02118" ixy="-0.00014" ixz="-0.00014" iyy="0.02263" iyz="-0.00098" izz="0.00747"/>
+        </inertial>
+    </link>
+
+    <joint name="03_left_knee_joint" type="revolute">
+        <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 -0.16"/>
+        <parent link="Left_HY2K"/>
+        <child link="Left_K2AP"/>
+        <axis xyz="0 1 0"/>
+        <dynamics rotor_inertia="0.000331"/>
+        <limit effort="356.39" velocity="9.6675" lower="-2.61799" upper="2.61799"/>
+    </joint>
+    <link name="Left_K2AP">
+        <visual>
+            <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
+            <geometry>
+                <mesh filename="Diden_Walker_Simplified_K2AP_Left_verD1_20260317.stl"/>
+            </geometry>
+            <material name="grey"/>
+        </visual>
+        <collision>
+            <origin rpy="1.57080 0.0 0.0" xyz="0.0 0.075 0.0"/>
+            <geometry>
+                <cylinder radius="0.045" length="0.03"/>
+            </geometry>
+        </collision>
+        <collision>
+            <origin rpy="0.0 0.0 0.0" xyz="0.0 0.075 -0.13"/>
+            <geometry>
+                <box size="0.09 0.03 0.16"/>
+            </geometry>
+        </collision>
+        <collision>
+            <origin rpy="1.57080 0.0 0.0" xyz="0.0 0.075 -0.26"/>
+            <geometry>
+                <cylinder radius="0.045" length="0.03"/>
+            </geometry>
+        </collision>
+        <inertial>
+            <origin rpy="0 0 0" xyz="0.0 0.07008 -0.13"/>
+            <mass value="1.00185"/>
+            <inertia ixx="0.01152" ixy="0.0" ixz="0.0" iyy="0.01231" iyz="0.0" izz="0.00095"/>
+        </inertial>
+    </link>
+
+    <joint name="04_left_ankle_pitch_joint" type="revolute">
+        <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 -0.26"/>
+        <parent link="Left_K2AP"/>
+        <child link="Left_AP2AR"/>
+        <axis xyz="0 1 0"/>
+        <dynamics rotor_inertia="0.000331"/>
+        <limit effort="356.39" velocity="9.6675" lower="-2.53073" upper="2.53073"/>
+    </joint>
+    <link name="Left_AP2AR">
+        <visual>
+            <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
+            <geometry>
+                <mesh filename="Diden_Walker_Simplified_AP2AR_Left_verD1_20260317.stl"/>
+            </geometry>
+            <material name="grey"/>
+        </visual>
+        <collision>
+            <origin rpy="1.57080 0.0 0.0" xyz="0.0 0.0 0.0"/>
+            <geometry>
+                <cylinder radius="0.058" length="0.116"/>
+            </geometry>
+        </collision>
+        <collision>
+            <origin rpy="0.0 1.57080 0.0" xyz="0.0 0.0 -0.12"/>
+            <geometry>
+                <cylinder radius="0.058" length="0.116"/>
+            </geometry>
+        </collision>
+        <inertial>
+            <origin rpy="0 0 0" xyz="0.00435 0.00177 -0.06111"/>
+            <mass value="5.23490"/>
+            <inertia ixx="0.02424" ixy="-0.00003" ixz="-0.00060" iyy="0.02423" iyz="0.00166" izz="0.00755"/>
+        </inertial>
+    </link>
+
+    <joint name="05_left_ankle_roll_joint" type="revolute">
+        <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 -0.12"/>
+        <parent link="Left_AP2AR"/>
+        <child link="Left_AR2F"/>
+        <axis xyz="1 0 0"/>
+        <dynamics rotor_inertia="0.000331"/>
+        <limit effort="356.39" velocity="9.6675" lower="-1.65806" upper="1.65806"/>
+    </joint>
+    <link name="Left_AR2F">
+        <visual>
+            <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
+            <geometry>
+                <mesh filename="Diden_Walker_Simplified_AR2F_Left_verD1_20260317.stl"/>
+            </geometry>
+            <material name="grey"/>
+        </visual>
+        <collision>
+            <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 -0.0995"/>
+            <geometry>
+                <box size="0.155 0.155 0.031"/>
+            </geometry>
+        </collision>
+        <inertial>
+            <origin rpy="0 0 0" xyz="-0.00327 0.0 -0.06529"/>
+            <mass value="0.97436"/>
+            <inertia ixx="0.00304" ixy="0.0" ixz="-0.00018" iyy="0.00430" iyz="0.0" izz="0.00347"/>
+        </inertial>
+    </link>
+<!-- Left leg -->
+
+<!-- Right leg -->
+    <joint name="06_right_hip_pitch_joint" type="revolute">
+        <origin rpy="0.0 0.0 0.0" xyz="0.0 -0.088 0.0"/>
+        <parent link="Pelvis"/>
+        <child link="Right_HP2HR"/>
+        <axis xyz="0 1 0"/>
+        <dynamics rotor_inertia="0.000331"/>
+        <limit effort="356.39" velocity="9.6675" lower="-1.65806" upper="1.65806"/>
+    </joint>
+    <link name="Right_HP2HR">
+        <visual>
+            <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
+            <geometry>
+                <mesh filename="Diden_Walker_Simplified_HP2HR_Right_verD1_20260317.stl"/>
+            </geometry>
+            <material name="grey"/>
+        </visual>
+        <collision>
+            <origin rpy="0.0 -1.57080 0.0" xyz="0.0 -0.05775 -0.06"/>
+            <geometry>
+                <cylinder radius="0.058" length="0.107"/>
+            </geometry>
+            <material name="grey"/>
+        </collision>
+        <inertial>
+            <origin rpy="0 0 0" xyz="-0.00550 -0.05030 -0.05367"/>
+            <mass value="2.62970"/>
+            <inertia ixx="0.00491" ixy="0.00020" ixz="0.00011" iyy="0.00371" iyz="0.00060" izz="0.00373"/>
+        </inertial>
+    </link>
+  
+    <joint name="07_right_hip_roll_joint" type="revolute">
+        <origin rpy="0.0 0.0 0.0" xyz="0.0 -0.05775 -0.06"/>
+        <parent link="Right_HP2HR"/>
+        <child link="Right_HR2HY"/>
+        <axis xyz="1 0 0"/>
+        <dynamics rotor_inertia="0.000331"/>
+        <limit effort="356.39" velocity="9.6675" lower="-2.09440" upper="0.523599"/>
+    </joint>
+    <link name="Right_HR2HY">
+        <visual>
+            <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
+            <geometry>
+                <mesh filename="Diden_Walker_Simplified_HR2HY_Right_verD1_20260317.stl"/>
+            </geometry>
+            <material name="grey"/>
+        </visual>
+        <collision>
+            <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 -0.115"/>
+            <geometry>
+                <cylinder radius="0.058" length="0.09"/>
+            </geometry>
+        </collision>
+        <inertial>
+            <origin rpy="0 0 0" xyz="-0.00203 -0.00071 -0.09162"/>
+            <mass value="1.55288"/>
+            <inertia ixx="0.00522" ixy="-0.00002" ixz="-0.00027" iyy="0.00644" iyz="-0.00002" izz="0.00359"/>
+        </inertial>
+    </link>
+
+    <joint name="08_right_hip_yaw_joint" type="revolute">
+        <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 -0.16"/>
+        <parent link="Right_HR2HY"/>
+        <child link="Right_HY2K"/>
+        <axis xyz="0 0 1"/>
+        <dynamics rotor_inertia="0.000331"/>
+        <limit effort="356.39" velocity="9.6675" lower="-1.57080" upper="1.57080"/>
+    </joint>
+    <link name="Right_HY2K">
+        <visual>
+            <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
+            <geometry>
+                <mesh filename="Diden_Walker_Simplified_HY2K_Right_verD1_20260317.stl"/>
+            </geometry>
+            <material name="grey"/>
+        </visual>
+        <collision>
+            <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 -0.049"/>
+            <geometry>
+                <cylinder radius="0.058" length="0.098"/>
+            </geometry>
+        </collision>
+        <collision>
+            <origin rpy="1.57080 0.0 0.0" xyz="0.0 0.0 -0.16"/>
+            <geometry>
+                <cylinder radius="0.058" length="0.116"/>
+            </geometry>
+        </collision>
+        <inertial>
+            <origin rpy="0 0 0" xyz="-0.00305 -0.00355 -0.10302"/>
+            <mass value="5.00840"/>
+            <inertia ixx="0.02118" ixy="-0.00014" ixz="0.00014" iyy="0.02263" iyz="0.00098" izz="0.00747"/>
+        </inertial>
+    </link>
+
+    <joint name="09_right_knee_joint" type="revolute">
+        <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 -0.16"/>
+        <parent link="Right_HY2K"/>
+        <child link="Right_K2AP"/>
+        <axis xyz="0 1 0"/>
+        <dynamics rotor_inertia="0.000331"/>
+        <limit effort="356.39" velocity="9.6675" lower="-2.61799" upper="2.61799"/>
+    </joint>
+    <link name="Right_K2AP">
+        <visual>
+            <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
+            <geometry>
+                <mesh filename="Diden_Walker_Simplified_K2AP_Right_verD1_20260317.stl"/>
+            </geometry>
+            <material name="grey"/>
+        </visual>
+        <collision>
+            <origin rpy="1.57080 0.0 0.0" xyz="0.0 -0.075 0.0"/>
+            <geometry>
+                <cylinder radius="0.045" length="0.03"/>
+            </geometry>
+        </collision>
+        <collision>
+            <origin rpy="0.0 0.0 0.0" xyz="0.0 -0.075 -0.13"/>
+            <geometry>
+                <box size="0.09 0.03 0.16"/>
+            </geometry>
+        </collision>
+        <collision>
+            <origin rpy="1.57080 0.0 0.0" xyz="0.0 -0.075 -0.26"/>
+            <geometry>
+                <cylinder radius="0.045" length="0.03"/>
+            </geometry>
+        </collision>
+        <inertial>
+            <origin rpy="0 0 0" xyz="0.0 -0.07008 -0.13"/>
+            <mass value="1.00185"/>
+            <inertia ixx="0.01152" ixy="0.0" ixz="0.0" iyy="0.01231" iyz="0.0" izz="0.00095"/>
+        </inertial>
+    </link>
+
+    <joint name="10_right_ankle_pitch_joint" type="revolute">
+        <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 -0.26"/>
+        <parent link="Right_K2AP"/>
+        <child link="Right_AP2AR"/>
+        <axis xyz="0 1 0"/>
+        <dynamics rotor_inertia="0.000331"/>
+        <limit effort="356.39" velocity="9.6675" lower="-2.53073" upper="2.53073"/>
+    </joint>
+    <link name="Right_AP2AR">
+        <visual>
+            <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
+            <geometry>
+                <mesh filename="Diden_Walker_Simplified_AP2AR_Right_verD1_20260317.stl"/>
+            </geometry>
+            <material name="grey"/>
+        </visual>
+        <collision>
+            <origin rpy="1.57080 0.0 0.0" xyz="0.0 0.0 0.0"/>
+            <geometry>
+                <cylinder radius="0.058" length="0.116"/>
+            </geometry>
+        </collision>
+        <collision>
+            <origin rpy="0.0 1.57080 0.0" xyz="0.0 0.0 -0.12"/>
+            <geometry>
+                <cylinder radius="0.058" length="0.116"/>
+            </geometry>
+        </collision>
+        <inertial>
+            <origin rpy="0 0 0" xyz="-0.00435 -0.00177 -0.06111"/>
+            <mass value="5.23490"/>
+            <inertia ixx="0.02424" ixy="-0.00003" ixz="0.00060" iyy="0.02423" iyz="-0.00166" izz="0.00755"/>
+        </inertial>
+    </link>
+
+    <joint name="11_right_ankle_roll_joint" type="revolute">
+        <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 -0.12"/>
+        <parent link="Right_AP2AR"/>
+        <child link="Right_AR2F"/>
+        <axis xyz="1 0 0"/>
+        <dynamics rotor_inertia="0.000331"/>
+        <limit effort="356.39" velocity="9.6675" lower="-1.65806" upper="1.65806"/>
+    </joint>
+    <link name="Right_AR2F">
+        <visual>
+            <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
+            <geometry>
+                <mesh filename="Diden_Walker_Simplified_AR2F_Right_verD1_20260317.stl"/>
+            </geometry>
+            <material name="grey"/>
+        </visual>
+        <collision>
+            <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 -0.0995"/>
+            <geometry>
+                <box size="0.155 0.155 0.031"/>
+            </geometry>
+        </collision>
+        <inertial>
+            <origin rpy="0 0 0" xyz="0.00327 0.0 -0.06529"/>
+            <mass value="0.97436"/>
+            <inertia ixx="0.00304" ixy="0.0" ixz="0.00018" iyy="0.00430" iyz="0.0" izz="0.00347"/>
+        </inertial>
+    </link>
+<!-- Right leg -->
+
+<!-- Base -->
+    <joint name="12_waist_pitch_joint" type="revolute">
+        <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.205"/>
+        <parent link="Pelvis"/>
+        <child link="Base"/>
+        <axis xyz="0 1 0"/>
+        <dynamics rotor_inertia="0.000331"/>
+        <limit effort="356.39" velocity="9.6675" lower="-1.57080" upper="1.57080"/>
+    </joint>
+    <link name="Base">
+        <visual>
+            <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
+            <geometry>
+                <mesh filename="Diden_Walker_Simplified_Base_verD1_20260317.stl"/>
+            </geometry>
+            <material name="grey"/>
+        </visual>
+        <collision>
+            <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
+            <geometry>
+                <mesh filename="Diden_Walker_Simplified_Base_verD1_20260317.stl"/>
+            </geometry>
+        </collision>
+        <inertial>
+            <origin rpy="0 0 0" xyz="-0.00009 -0.00012 0.07087"/>
+            <mass value="10.13087"/>
+            <inertia ixx="0.14077" ixy="0.00023" ixz="-0.00088" iyy="0.13863" iyz="0.00071" izz="0.13713"/>
+        </inertial>
+    </link>
+<!-- Base -->
+
+</robot>

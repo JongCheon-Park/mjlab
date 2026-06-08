@@ -181,7 +181,10 @@ def unitree_go1_rough_env_cfg(
       "shared_random": True,
     },
   )
-  cfg.events["base_com"].params["asset_cfg"].body_names = ("trunk",)
+  if "base_com" in cfg.events:
+    cfg.events["base_com"].params["asset_cfg"].body_names = ("trunk",)
+  if "torso_pseudo_inertia" in cfg.events:
+    cfg.events["torso_pseudo_inertia"].params["asset_cfg"].body_names = ("trunk",)
 
   cfg.rewards["pose"].params["std_standing"] = {
     r".*(FR|FL|RR|RL)_(hip|thigh)_joint.*": 0.05,
@@ -205,7 +208,8 @@ def unitree_go1_rough_env_cfg(
 
   cfg.rewards["body_ang_vel"].weight = 0.0
   cfg.rewards["angular_momentum"].weight = 0.0
-  cfg.rewards["air_time"].weight = 0.0
+  if "air_time" in cfg.rewards:
+    cfg.rewards["air_time"].weight = 0.0
 
   # Per-body-group collision penalties.
   cfg.rewards["self_collisions"] = RewardTermCfg(
@@ -283,8 +287,8 @@ def unitree_go1_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   cfg.scene.sensors = tuple(
     s for s in (cfg.scene.sensors or ()) if s.name not in remove_sensors
   )
-  del cfg.observations["actor"].terms["height_scan"]
-  del cfg.observations["critic"].terms["height_scan"]
+  for group in ("actor", "critic"):
+    cfg.observations[group].terms.pop("height_scan", None)
   cfg.rewards["upright"].params.pop("terrain_sensor_names", None)
 
   # Remove granular collision rewards (not useful on flat ground).

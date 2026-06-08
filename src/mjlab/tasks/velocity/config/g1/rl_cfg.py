@@ -5,6 +5,7 @@ from mjlab.rl import (
   RslRlOnPolicyRunnerCfg,
   RslRlPpoAlgorithmCfg,
 )
+from mjlab.rl.moe_model import MoEActorModelCfg
 
 
 def unitree_g1_ppo_runner_cfg() -> RslRlOnPolicyRunnerCfg:
@@ -44,3 +45,32 @@ def unitree_g1_ppo_runner_cfg() -> RslRlOnPolicyRunnerCfg:
     num_steps_per_env=24,
     max_iterations=30_000,
   )
+
+
+def unitree_g1_moe_ppo_runner_cfg() -> RslRlOnPolicyRunnerCfg:
+  """Create RL runner configuration for Unitree G1 velocity task with MoE actor.
+
+  Actor: shared trunk + 3 velocity-axis experts (lin_vel_x, lin_vel_y,
+  ang_vel_z) merged via concat, then a small head. Rule-based hard routing
+  picks one expert per step based on the dominant command axis. Critic stays
+  the baseline MLP so the comparison only varies the policy network.
+  """
+  cfg = unitree_g1_ppo_runner_cfg()
+  cfg.experiment_name = "g1_velocity_moe"
+  cfg.actor = MoEActorModelCfg(
+    activation="elu",
+    obs_normalization=True,
+    distribution_cfg={
+      "class_name": "GaussianDistribution",
+      "init_std": 1.0,
+      "std_type": "scalar",
+    },
+    shared_dims=(256, 128),
+    expert_dims=(192, 128),
+    head_dims=(128,),
+    num_experts=3,
+    merge="concat",
+    cmd_start=-3,
+    cmd_end=None,
+  )
+  return cfg
