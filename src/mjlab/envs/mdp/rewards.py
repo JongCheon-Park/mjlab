@@ -55,14 +55,24 @@ def joint_acc_l2(
   return torch.sum(torch.square(asset.data.joint_acc[:, asset_cfg.joint_ids]), dim=1)
 
 
-def action_rate_l2(env: ManagerBasedRlEnv) -> torch.Tensor:
+def action_rate_l2(
+  env: ManagerBasedRlEnv,
+  normalize: bool = False,
+) -> torch.Tensor:
   """Penalize the rate of change of the actions using L2 squared kernel.
 
   Operates on raw policy output (before per-term scale/offset).
+
+  Args:
+    normalize: If True, divides by the number of action dimensions to make the
+      reward magnitude independent of action_dim.
   """
-  return torch.sum(
+  rate = torch.sum(
     torch.square(env.action_manager.action - env.action_manager.prev_action), dim=1
   )
+  if normalize:
+    rate = rate / env.action_manager.action.shape[1]
+  return rate
 
 
 def action_acc_l2(env: ManagerBasedRlEnv) -> torch.Tensor:

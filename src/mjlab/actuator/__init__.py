@@ -35,9 +35,6 @@ from mjlab.actuator.builtin_actuator import (
   BuiltinPositionActuatorCfg as BuiltinPositionActuatorCfg,
 )
 
-# Aliases for KIMM-internal naming (BuiltinPd* ↔ BuiltinPosition*)
-BuiltinPdActuator = BuiltinPositionActuator
-BuiltinPdActuatorCfg = BuiltinPositionActuatorCfg
 from mjlab.actuator.builtin_actuator import (
   BuiltinVelocityActuator as BuiltinVelocityActuator,
 )

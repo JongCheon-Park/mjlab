@@ -500,9 +500,7 @@ def make_velocity_env_cfg(
       params={"sensor_name": "robot/root_angmom"},
     ),
     "dof_pos_limits": RewardTermCfg(func=mdp.joint_pos_limits, weight=-5.0),
-    "action_rate_l2": RewardTermCfg(
-      func=mdp.action_rate_l2, weight=-1.0e-1, params={"normalize": True}
-    ),
+    "action_rate_l2": RewardTermCfg(func=mdp.action_rate_l2, weight=-1.0e-1),
     # "joint_acc": RewardTermCfg(func=mdp.joint_acc_l2, weight=-2.5e-7),
     "joint_effort_limit": RewardTermCfg(
       weight=-1.0e-2,

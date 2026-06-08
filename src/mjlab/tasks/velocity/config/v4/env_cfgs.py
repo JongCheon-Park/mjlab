@@ -124,8 +124,8 @@ def kimm_v4_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
   # V4 has 2 actuator config groups: X12 hip/knee pitch and X8 waist/roll/yaw/ankles.
   dr_actuator_ids = [0, 1]
-  cfg.events["pd_gains"].params["asset_cfg"].actuator_ids = dr_actuator_ids
-  cfg.events["actuator_rfi"].params["asset_cfg"].actuator_ids = dr_actuator_ids
+  cfg.events.pop("pd_gains", None)  # BuiltinPdActuator incompatible
+  cfg.events.pop("actuator_rfi", None)  # BuiltinPdActuator incompatible
 
   # Rationale for std values:
   # - V4 has waist yaw plus lower-body joints only.
