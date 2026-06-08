@@ -242,7 +242,7 @@ Gaussian, `init_std=1.0`, std_type=scalar. **No tanh squashing, no action clippi
 ```sh
 CUDA_VISIBLE_DEVICES=0 uv run train Mjlab-Velocity-Flat-KIMM-V4 \
   --env.scene.num-envs 4096 \
-  --agent.run-name v4_t1
+  --agent.run-name v4_moe_t1
 ```
 
 ### 학습 (rough)
@@ -250,14 +250,14 @@ CUDA_VISIBLE_DEVICES=0 uv run train Mjlab-Velocity-Flat-KIMM-V4 \
 ```sh
 CUDA_VISIBLE_DEVICES=0 uv run train Mjlab-Velocity-Rough-KIMM-V4 \
   --env.scene.num-envs 4096 \
-  --agent.run-name v4_rough_t1
+  --agent.run-name v4_moe_rough_t1
 ```
 
 ### Play
 
 ```sh
 uv run play Mjlab-Velocity-Flat-KIMM-V4 \
-  --checkpoint-file logs/rsl_rl/v4_velocity_moe/<ts>_v4_t1/model_5000.pt \
+  --checkpoint-file logs/rsl_rl/v4_velocity_moe/<ts>_v4_moe_t1/model_5000.pt \
   --viewer viser
 ```
 
@@ -266,9 +266,9 @@ uv run play Mjlab-Velocity-Flat-KIMM-V4 \
 ```sh
 CUDA_VISIBLE_DEVICES=0 uv run train Mjlab-Velocity-Flat-KIMM-V4 \
   --env.scene.num-envs 4096 \
-  --agent.run-name v4_t1 \
+  --agent.run-name v4_moe_t1 \
   --agent.wandb-project mjlab_v4 \
-  --agent.wandb-tags '("v4","t1","kimm_original")'
+  --agent.wandb-tags '("v4","t1","moe","4expert")'
 ```
 
 ## 6. Git 워크플로우
