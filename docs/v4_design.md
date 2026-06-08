@@ -1,285 +1,225 @@
 # KIMM V4 학습 설정 — Design Doc
 
-`Mjlab-Velocity-Flat-V4` task. **9개 reward 최소 set + per-joint pose std + 5-network MoE.**
+`Mjlab-Velocity-Flat-KIMM-V4` task. KIMM 내부 검증된 V4 보행 학습 setup.
 
 ## 0. 파일 구조
 
 ```
 src/mjlab/asset_zoo/robots/kimm_v4/
 ├── kimm_v4_constants.py    Robot spec (actuator, keyframe, scale, collision)
+├── kimm_v4_actuators.py    RMD X12/X8 motor 모듈 사양
 ├── __init__.py
-└── xmls/kimm_v4.xml        MJCF
+└── xmls/kimm_v4.xml        MJCF + meshes
 
-src/mjlab/tasks/velocity/config/kimm_v4/
-├── env_cfgs.py             환경 (reward, sensor, action)
-├── rl_cfg.py               PPO + MoE actor
+src/mjlab/tasks/velocity/config/v4/
+├── env_cfgs.py             환경 (reward, sensor, action, curriculum)
+├── rl_cfg.py               PPO + plain MLP actor (NOT MoE)
 └── __init__.py             Task 등록
 ```
 
-모든 학습 로그: `logs/rsl_rl/v4_velocity_wholebody_moe/<timestamp>_<run_name>/`
+학습 로그: `logs/rsl_rl/v4_velocity/<timestamp>_<run_name>/`
 
----
+## 1. 등록된 task
 
-## 1. Robot — kimm_v4_constants.py
+| Task ID                          | 환경     | 용도                  |
+| -------------------------------- | -------- | --------------------- |
+| `Mjlab-Velocity-Flat-KIMM-V4`    | 평지     | 일반 보행 학습 (주력) |
+| `Mjlab-Velocity-Rough-KIMM-V4`   | 거친 지면 | 지형 적응 학습         |
 
-### 1.1 Actuator (PD)
+## 2. Robot — kimm_v4_constants.py
 
-| 모터 | 관절                       | Kp  | Kd  | armature | effort | ωₙ_motor | ζ    |
-| ---- | -------------------------- | --: | --: | -------: | -----: | -------: | ---: |
-| X12  | hip_pitch, knee            | 509 | 65  | 0.516    | 170 Nm | 5.0 Hz   | 2.00 |
-| X8   | hip_roll/yaw, ankle, waist | 250 | 16  | 0.0577   | 86 Nm  | 10.5 Hz  | 2.13 |
+### 2.1 Actuator (auto-computed PD)
 
-**X8 Kp=250 결정 근거:**
-- ωₙ=5Hz × armature 식 적용 시 Kp=57 → ankle이 robot 전체 mass 못 잡음
-- 검증: Kp=57 시 5초 standing → 8/8 falls
-- **Kp=250으로 키움 → 0/8 falls** (10초 std=0.00015)
-- ankle effective ωₙ at standing ≈ 1 Hz (P1 수준)
+motor 스펙(RMD X12/X8) + drivetrain efficiency 로부터 자동 계산:
 
-### 1.2 Action scale (G1 formula)
+```python
+FN_HZ = 5.0
+ZETA = 2.0
+drivetrain_efficiency = 2.0
+```
 
-| 그룹 | 관절             | scale (rad) | 도(°) |
-| ---- | ---------------- | ----------: | ----: |
-| X12  | hip_pitch, knee  | 0.0835      | 4.78  |
-| X8   | 나머지           | 0.086       | 4.93  |
+결과:
 
-`0.25 × effort / Kp`. 정책 mean μ가 큰 값 학습해서 stride 만듦 (P1 검증 방식).
+| 모터 | 관절                       | Kp    | Kd    | armature | effort | ωₙ_motor |
+| ---- | -------------------------- | ----: | ----: | -------: | -----: | -------: |
+| X12  | hip_pitch, knee            | 509.3 | 64.84 | 0.5160   | 170 Nm | 5.0 Hz   |
+| X8   | hip_roll/yaw, ankle, waist | 56.9  | 7.25  | 0.0577   | 86 Nm  | 5.0 Hz   |
 
-### 1.3 KNEES_BENT 초기 자세
+> 참고: X8 모터 inertia 작아서 standing 시 ankle effective ωₙ < 1 Hz.
+> KIMM 검증된 reward stack 으로 학습 안정성 보장됨.
+
+### 2.2 Action scale (G1 formula: `0.25 × effort / Kp`)
+
+| 그룹  | 관절                                   | scale (rad) | 도(°) |
+| ----- | -------------------------------------- | ----------: | ----: |
+| X12   | hip_pitch, knee                         | 0.0835      | 4.78  |
+| X8    | hip_roll/yaw, ankle_pitch/roll, waist  | 0.3776      | 21.63 |
+
+정책 mean μ가 큰 값 학습해서 stride 만듦.
+
+### 2.3 KNEES_BENT 초기 자세
 
 | 관절          | 각도   |
 | ------------- | ------ |
 | hip_pitch     | ±5°    |
 | hip_roll      | 0      |
 | hip_yaw       | 0      |
-| knee_pitch    | +10°   |
+| knee          | +10°   |
 | ankle_pitch   | -5°    |
 | ankle_roll    | 0      |
 | waist_yaw     | 0      |
 | torso z spawn | 0.84 m |
 
-검증: action=0 으로 10초 standing → falls 0/64, 평균 z=0.838 (std 0.00015).
+좌우 hip_pitch 부호 반대 (mirror). 다른 관절은 동일 부호.
 
-### 1.4 Foot collision
+### 2.4 Foot collision
 
 ```python
 condim   = 3       # 발 capsule만, 마찰 평면
 priority = 1
 friction = 0.6
-geom     = (left|right)_foot[1-8]_collision   # V4는 8 capsule
+geom     = (left|right)_foot[1-8]_collision   # 8 capsule
 ```
 
----
+## 3. 환경 — env_cfgs.py
 
-## 2. 환경 — env_cfgs.py
+### 3.1 관절 / Action
 
-### 2.1 관절 패턴 (팔 없음)
+- 전체 관절 컨트롤 (13 DOF: legs 12 + waist 1)
+- knee 관절명: `knee_joint` (P1 스타일)
 
-```python
-LEG_JOINT_PATTERNS = (
-  r".*_hip_.*_joint",
-  r".*_knee_pitch_joint",   # V4 (G1은 knee_joint)
-  r".*_ankle_.*_joint",
-)
-WAIST_JOINT_PATTERNS = (r"waist_yaw_joint",)
-```
+### 3.2 Sensor
 
-→ wholebody action: **13 DOF** (legs 12 + waist 1).
+| Sensor              | 역할                                          |
+| ------------------- | --------------------------------------------- |
+| feet_ground_contact | 발 ↔ 지면 contact + air time 추적             |
+| feet_center_contact | 발 가운데(foot4/5) 접지 여부                  |
+| self_collision      | torso_link subtree 내부 충돌                  |
+| foot_height_scan    | 발 site 주변 6 raycast (반경 3cm)             |
+| terrain_scan        | torso_link 기준 raycast (rough env만)          |
 
-### 2.2 DR (Domain Randomization) — 모두 disable
+### 3.3 base_height 측정 기준
 
-| Event                | 상태   |
-| -------------------- | ------ |
-| push_robot           | OFF    |
-| foot_friction        | OFF    |
-| encoder_bias         | OFF    |
-| torso_pseudo_inertia | OFF    |
-| joint_armature       | OFF    |
-| joint_friction       | OFF    |
-| joint_damping        | OFF    |
-| actuator_rfi         | OFF    |
-| reset_base           | ON ✓   |
-| reset_robot_joints   | ON ✓   |
+`base_height` reward 는 `root_link_pos_w[:, 2]` 사용 = **torso_link** z.
 
-### 2.3 Sensor
+| 기준 body  | standing 시 z |
+| ---------- | ------------- |
+| torso_link | 0.838 m       |
+| base_link  | 0.905 m       |
+| IMU site   | 1.428 m       |
 
-| Sensor              | 역할                                |
-| ------------------- | ----------------------------------- |
-| feet_ground_contact | 발 ↔ 지면 contact + air time 추적   |
-| self_collision      | robot 내부 충돌 (torso_link subtree) |
-| foot_height_scan    | 발 site 주변 6 raycast (반경 3cm)   |
+`target_height = 0.84` 는 torso_link 기준.
 
-### 2.4 base_height 측정 기준
+### 3.4 Reward — 38개 활성
 
-`base_height_l2` reward 가 쓰는 z = `root_link_pos_w[:, 2]` = **torso_link** world z.
+`docs/v4_reward.md` 참조.
 
-| 기준 body  | 측정 z 위치 (standing 시) |
-| ---------- | ------------------------- |
-| torso_link | **0.838 m** ← target 기준 |
-| base_link  | 0.905 m (torso + 0.067)   |
-| IMU site   | 1.428 m (torso + 0.590)   |
+### 3.5 Curriculum
 
-→ `target_height = 0.84` 는 torso_link 기준. IMU 기준 아님.
+`command_vel`, `track_*_std`, `biped_air_time_weight`, 기타 KIMM 내부 curriculum (env_cfgs.py 정의).
 
-### 2.5 Reward — 9개 활성
+### 3.6 DR (Domain Randomization)
 
-§3 참조. `docs/v4_reward.md`에 상세.
+KIMM 코드는 일부 DR 활성 (push_robot, foot_friction, encoder_bias, joint_armature 등). 정확한 활성/비활성은 학습 시 log 의 events 표 확인.
 
-### 2.6 Curriculum
+## 4. RL / Actor — rl_cfg.py
 
-`command_vel` (default — velocity_env_cfg.py 정의):
+### 4.1 Network (plain MLP, NOT MoE)
 
-| step        | lin_vel_x      | lin_vel_y      | ang_vel_z    |
-| ----------- | -------------- | -------------- | ------------ |
-| 0           | (-0.5, 0.5)    | (-0.5, 0.5)    | (-0.5, 0.5)  |
-| 60K (2.5K iter) | (-1.0, 1.0) | (-1.0, 1.0)   | (-1.0, 1.0)  |
-| 120K        | (-1.5, 2.0)    | (-1.0, 1.0)    | (-1.5, 1.5)  |
-| 240K        | (-1.5, 3.0)    | (-1.0, 1.0)    | (-2.0, 2.0)  |
-| 480K        | (-1.5, 3.5)    | (-1.0, 1.0)    | (-2.0, 2.0)  |
+| 모듈        | layers          |
+| ----------- | --------------- |
+| actor MLP   | (512, 256, 128) |
+| critic MLP  | (512, 256, 128) |
 
----
+### 4.2 PPO hyperparams
 
-## 3. RL / Actor — rl_cfg.py
-
-### 3.1 MoE 구조 — 5 networks
-
-```
-                    obs (240 dim)
-                         │
-       ┌─────────────────┼──────────────────────────────────┐
-       ▼                 ▼          ▼          ▼            ▼
-   SHARED MLP        expert[0]   expert[1]  expert[2]   expert[3]
-   (256→128)         (vx)         (vy)       (yaw)       (STANDING)
-   always on         └─────── 4-way routing ─────────────────┘
-                              1 selected
-                         │
-              shared(128) + expert(128) → concat (256)
-                         │
-                    head MLP (128)
-                         │
-                  action μ (13 dim) → Gaussian sample
-```
-
-활성 path per step = **shared + 1 routed expert = 2** (총 5 networks 등록).
-
-### 3.2 Routing 규칙
-
-| 조건                              | 선택 expert  |
-| --------------------------------- | ------------ |
-| \|cmd\|_max < 0.05 m/s            | 3 (STANDING) |
-| argmax(\|cmd[0]\|) = 0 (vx 우세)  | 0 (vx)       |
-| argmax(\|cmd[1]\|) = 1 (vy 우세)  | 1 (vy)       |
-| argmax(\|cmd[2]\|) = 2 (yaw 우세) | 2 (yaw)      |
-
-### 3.3 Network dimensions
-
-| 모듈         | layers          | output dim |
-| ------------ | --------------- | ---------- |
-| shared MLP   | (256, 128)      | 128        |
-| 각 expert    | (192, 128)      | 128        |
-| head MLP     | (128,)          | 13         |
-| critic MLP   | (512, 256, 128) | 1          |
-
-### 3.4 PPO hyperparams
-
-| param                | 값                          |
-| -------------------- | --------------------------- |
-| clip_param           | 0.2                         |
-| entropy_coef         | 0.01                        |
-| num_learning_epochs  | 5                           |
-| num_mini_batches     | 4                           |
+| param                | 값                              |
+| -------------------- | ------------------------------- |
+| clip_param           | 0.2                             |
+| entropy_coef         | 0.01                            |
+| num_learning_epochs  | 5                               |
+| num_mini_batches     | 4                               |
 | learning_rate        | 1e-3 (adaptive, target KL 0.01) |
-| gamma                | 0.99                        |
-| lam                  | 0.95                        |
-| max_grad_norm        | 1.0                         |
-| num_steps_per_env    | 24                          |
-| max_iterations       | 30,000                      |
+| gamma                | 0.99                            |
+| lam                  | 0.95                            |
+| max_grad_norm        | 1.0                             |
+| num_steps_per_env    | 24                              |
+| max_iterations       | 30,000                          |
+| save_interval        | 100                             |
+| experiment_name      | "v4_velocity"                   |
 
-### 3.5 Distribution
+### 4.3 Distribution
 
 Gaussian, `init_std=1.0`, std_type=scalar. **No tanh squashing, no action clipping** — policy 출력 unbounded.
 
----
+## 5. 실행
 
-## 4. Task 등록
+### 학습 (평지)
 
-```python
-register_mjlab_task(
-  task_id="Mjlab-Velocity-Flat-V4",
-  env_cfg=v4_flat_env_cfg(observe_waist=True, control_waist=True),
-  rl_cfg=v4_wholebody_moe_ppo_runner_cfg(
-    experiment_name="v4_velocity_wholebody_moe",
-    num_experts=4,
-    standing_threshold=0.05,
-  ),
-  runner_cls=VelocityOnPolicyRunner,
-)
+```sh
+CUDA_VISIBLE_DEVICES=0 uv run train Mjlab-Velocity-Flat-KIMM-V4 \
+  --env.scene.num-envs 4096 \
+  --agent.run-name v4_t1
 ```
 
----
+### 학습 (rough)
 
-## 5. 실행 명령
-
-### 학습
 ```sh
-CUDA_VISIBLE_DEVICES=0 uv run train Mjlab-Velocity-Flat-V4 \
+CUDA_VISIBLE_DEVICES=0 uv run train Mjlab-Velocity-Rough-KIMM-V4 \
   --env.scene.num-envs 4096 \
-  --agent.run-name v4_t18
+  --agent.run-name v4_rough_t1
 ```
 
 ### Play
+
 ```sh
-uv run play Mjlab-Velocity-Flat-V4 \
-  --checkpoint-file logs/rsl_rl/v4_velocity_wholebody_moe/<ts>_v4_t18/model_5000.pt \
+uv run play Mjlab-Velocity-Flat-KIMM-V4 \
+  --checkpoint-file logs/rsl_rl/v4_velocity/<ts>_v4_t1/model_5000.pt \
   --viewer viser
 ```
 
-### W&B
+### W&B 같이
+
 ```sh
-CUDA_VISIBLE_DEVICES=0 uv run train Mjlab-Velocity-Flat-V4 \
-  --env.scene.num-envs 4096 --agent.run-name v4_t18 \
+CUDA_VISIBLE_DEVICES=0 uv run train Mjlab-Velocity-Flat-KIMM-V4 \
+  --env.scene.num-envs 4096 \
+  --agent.run-name v4_t1 \
   --agent.wandb-project mjlab_v4 \
-  --agent.wandb-tags '("v4","t18","poseStdPerJoint")'
+  --agent.wandb-tags '("v4","t1","kimm_original")'
 ```
 
----
+## 6. Git 워크플로우
 
-## 6. 학습 기대치 / milestones
+| 명령                                     | 동작                                |
+| ---------------------------------------- | ----------------------------------- |
+| `git checkout v4-dev`                    | V4 작업 브랜치                      |
+| `git commit -am "..."`                   | 변경 commit                         |
+| `git push`                               | origin/v4-dev (너의 fork) 에 push   |
+| `git checkout main && git pull`          | upstream/main (mjlab 원본) 따라잡기 |
+| `git checkout v4-dev && git merge main`  | v4-dev 에 main 변경 가져옴          |
 
-| iter  | 기대                       | 핵심 metric                              |
-| ----: | -------------------------- | ---------------------------------------- |
-| 300   | mean reward 양수           | `Reward/total`                           |
-| 1500  | tracking 추종 시작         | `Reward/track_linear_velocity` raw > 0.3 |
-| 3000  | 첫 stride emerge           | `Metrics/peak_height_mean` > 30mm        |
-| 5000  | 보행 시작                  | `Metrics/twist/error_vel_xy` < 0.5       |
-| 10000 | 안정 보행                  | mean reward plateau                      |
-| 30000 | full curriculum 통과       | robust gait                              |
+Remote 구성:
+- **origin** = `https://github.com/JongCheon-Park/mjlab.git` (너의 fork — push 가능)
+- **upstream** = `https://github.com/mujocolab/mjlab.git` (원본 mjlab — pull 받기만)
 
-**Walking emerge 핵심 신호:** `peak_height_mean` ≥ 30mm + `biped_air_time` raw ≥ 0.3.
+## 7. 학습 기대치 / milestones
 
----
+| iter  | 기대                          | 핵심 metric                              |
+| ----: | ----------------------------- | ---------------------------------------- |
+| 300   | mean reward 양수, fall 줄어듬 | `Reward/total`                           |
+| 1500  | tracking 추종 시작            | `Reward/track_linear_velocity` raw > 0.3 |
+| 3000  | 첫 stride emerge              | `Metrics/peak_height_mean` > 30mm        |
+| 5000  | 보행 시작                     | `Metrics/twist/error_vel_xy` < 0.5       |
+| 10000 | 안정 보행                     | mean reward plateau                      |
+| 30000 | full curriculum 통과          | robust gait                              |
 
-## 7. 검증된 fact
+## 8. 진단 체크리스트
 
-| 테스트                              | 결과                              |
-| ----------------------------------- | --------------------------------- |
-| Standing (action=0, 10sec, 64 envs) | falls 0/64, z=0.838 std 0.00015   |
-| env.step 4 regime (stand/walk/turn/run) | 모두 pass                     |
-| Reward 9개 fire 검증                | standing/walking 다 정상          |
-| Lint + format                       | 통과                              |
-
----
-
-## 8. 학습 history (lessons learned)
-
-| run         | 설정                                          | 결과                                  |
-| ----------- | --------------------------------------------- | ------------------------------------- |
-| v4_t1 (옛)  | P1 강한 shaping, Kp X8=57                     | 30K iter peak 25mm, marching          |
-| v4_t8-11    | G1 minimal, Kp X8=57                          | 30K iter peak 4mm, **standing 못 잡음** |
-| v4_t14      | Kp X8=250, G1 minimal, pose uniform std       | 30K iter reward 196, **다리 벌려서 shuffle (reward hack)** |
-| v4_t16      | + foot penalty + P1 weight (너무 강함)        | 초기 자주 falls, 학습 막힘            |
-| **v4_t18**  | **v4_t14 + pose per-joint std (단일 변화)**   | **다리 벌림 사라질지 평가 중**         |
-
-**진단 핵심:**
-1. **X8 Kp=57 → 250** (standing 가능) — 모든 학습의 baseline
-2. **pose uniform std 0.5 → per-joint** (hip_roll 0.15 tight) — reward hack 방지
-3. 한 번에 너무 많이 바꾸면 학습 무너짐 (v4_t16 사례)
+| 증상                          | 의심                                                  |
+| ----------------------------- | ----------------------------------------------------- |
+| 자주 넘어짐 (iter > 1K)       | `base_height` target / `dof_pos_limits` weight        |
+| 발 안 듬 (peak_height < 10mm) | `biped_air_time` curriculum / `foot_clearance` weight |
+| 다리 벌리고 shuffle           | `pose` hip_roll std / heelstrike pattern weights      |
+| 짞짞이 보행                   | `biped_first_swing_foot` weight / XML 좌우 비대칭     |
+| forward lean 후 발 뒤         | `upright` pitch std / `thigh_swing_pattern` weight    |
+| reward 음수 (안 학습)         | `joint_torque_rate` / `joint_power` 페널티 분석       |
