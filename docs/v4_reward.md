@@ -142,6 +142,24 @@ walking phase 별 ideal joint 각도 강제 — 자연스러운 보행 패턴.
 
 발 중앙(`foot4`, `foot5`) 미접지 페널티. 발끝/뒤꿈치만 접지 (forefoot/heel-only) 방지.
 
+### 10. action_rate_l2 (★ normalize=True)
+
+```python
+rate = sum((action - prev_action)², dim=1)
+if normalize:
+    rate = rate / action_dim   # ÷ 13 for V4
+return rate
+```
+
+| param     | 값      |
+| --------- | ------: |
+| weight    | -0.1    |
+| normalize | True    |
+
+**effective per-step contribution = -0.1 / 13 ≈ -0.0077** (action_dim 무관 신호).
+
+→ 모든 robot 에 같은 reward 크기. V4 (13 DOF) vs G1 (29 DOF) 결과 비교 시 일관성.
+
 ---
 
 ## Reward 시나리오 분석 (대략)

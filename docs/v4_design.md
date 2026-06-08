@@ -120,7 +120,20 @@ geom     = (left|right)_foot[1-8]_collision   # 8 capsule
 
 ### 3.6 DR (Domain Randomization)
 
-KIMM 코드는 일부 DR 활성 (push_robot, foot_friction, encoder_bias, joint_armature 등). 정확한 활성/비활성은 학습 시 log 의 events 표 확인.
+KIMM 코드는 일부 DR 활성: `push_robot`, `foot_friction`, `encoder_bias`, `joint_armature`, `joint_friction`, `joint_damping` 등.
+
+**비활성 (BuiltinPdActuator 비호환 — 어쩔 수 없이 pop):**
+
+| Event          | 사유                                                          |
+| -------------- | ------------------------------------------------------------- |
+| `pd_gains`     | KIMM DR code 가 `BuiltinPositionActuator` 만 지원 (Pd 미지원) |
+| `actuator_rfi` | 동일 — 1-to-1 mapping 가정, BuiltinPdActuator 는 2-to-1     |
+
+→ V4 env_cfg.py 에서 `cfg.events.pop(...)` 으로 disable.
+
+만약 살리고 싶으면 `envs/mdp/dr/actuator.py` 의 KIMM DR 코드를 BuiltinPdActuator 지원하도록 패치 필요.
+
+정확한 활성/비활성은 학습 시 log 의 events 표 확인.
 
 ## 4. RL / Actor — rl_cfg.py
 
@@ -201,6 +214,30 @@ CUDA_VISIBLE_DEVICES=0 uv run train Mjlab-Velocity-Flat-KIMM-V4 \
 Remote 구성:
 - **origin** = `https://github.com/JongCheon-Park/mjlab.git` (너의 fork — push 가능)
 - **upstream** = `https://github.com/mujocolab/mjlab.git` (원본 mjlab — pull 받기만)
+
+브랜치:
+- **main** = upstream 따라가는 깨끗한 mjlab (61af2b75)
+- **v4-dev** = V4 작업 + KIMM 내부 mjlab 수정 (main과 merge됨)
+
+## 6.1 V4 코드 출처
+
+V4 작업 코드는 `V4__20260608/` 백업 폴더에서 복원 (commit `68d7d2ee`):
+- `kimm_v4_constants.py`, `kimm_v4_actuators.py`, `xmls/kimm_v4.xml` (robot)
+- `config/v4/env_cfgs.py`, `config/v4/rl_cfg.py`, `config/v4/__init__.py` (task)
+- `velocity_env_cfg.py`, `velocity/mdp/*.py` (KIMM 내부 mjlab 수정)
+- `actuator_torque.py` (별도 제공)
+
+원본 보존: `V4__20260608/` 폴더는 reference로 유지. src/mjlab/ 의 파일과 항상 동일해야 함.
+
+검증:
+```sh
+diff src/mjlab/asset_zoo/robots/kimm_v4/kimm_v4_constants.py \
+     V4__20260608/mjlab/src/mjlab/asset_zoo/robots/kimm_v4/kimm_v4_constants.py
+# (출력 없음 = 동일)
+```
+
+유일한 functional 변경 (BuiltinPdActuator 호환):
+- `env_cfgs.py`: `cfg.events.pop("pd_gains")`, `cfg.events.pop("actuator_rfi")` 추가
 
 ## 7. 학습 기대치 / milestones
 
