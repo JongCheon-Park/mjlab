@@ -35,7 +35,7 @@ def kimm_v4_ppo_runner_cfg() -> RslRlOnPolicyRunnerCfg:
       merge="concat",
       cmd_start=-3,
       cmd_end=None,
-      standing_threshold=0.05,
+      standing_threshold=0.10,  # 0.05 → 0.10: STANDING expert routing 더 확실히
     ),
     critic=RslRlModelCfg(
       hidden_dims=(512, 256, 128),
