@@ -1,0 +1,163 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mujoco model="kimm_v4">
+  <compiler angle="radian" meshdir="meshes" autolimits="true" />
+  <default>
+    <default class="v4">
+      <default class="visual">
+        <geom group="1" type="mesh" density="0" contype="0" conaffinity="0" />
+      </default>
+      <default class="collision">
+        <geom group="3" rgba=".2 .8 .2 .35" contype="1" conaffinity="1" />
+      </default>
+      <site group="5" rgba="1 0 0 1" />
+    </default>
+  </default>
+  <asset>
+    <material name="blue_accent" rgba="0.2 0.5 1 1" shininess="0.9" specular="1" reflectance="0.3" />
+    <material name="anthracite" rgba="0.2 0.2 0.2 1" shininess="0.1" specular="0.3" reflectance="0.1" />
+    <material name="black" rgba="0.1 0.1 0.1 1" shininess="0.05" specular="0.1" reflectance="0.05" />
+    <mesh name="torso_link" file="body.STL" />
+    <mesh name="base_link" file="base_link.STL" />
+    <mesh name="right_hip_pitch_link" file="right_pelvis_pitch.STL" />
+    <mesh name="right_hip_roll_link" file="right_pelvis_roll.STL" />
+    <mesh name="right_hip_yaw_link" file="right_pelvis_yaw.STL" />
+    <mesh name="right_knee_pitch" file="right_knee_pitch.STL" />
+    <mesh name="right_ankle_pitch" file="right_ankle_pitch.STL" />
+    <mesh name="right_ankle_roll" file="right_ankle_roll.STL" />
+    <mesh name="left_hip_pitch_link" file="left_pelvis_pitch.STL" />
+    <mesh name="left_hip_roll_link" file="left_pelvis_roll.STL" />
+    <mesh name="left_hip_yaw_link" file="left_pelvis_yaw.STL" />
+    <mesh name="left_knee_pitch" file="left_knee_pitch.STL" />
+    <mesh name="left_ankle_pitch" file="left_ankle_pitch.STL" />
+    <mesh name="left_ankle_roll" file="left_ankle_roll.STL" />
+  </asset>
+  <worldbody>
+    <body name="torso_link" pos="0 0 0.84" childclass="v4">
+      <inertial pos="0.00119 0.00147 0.34495" mass="12.49" fullinertia="0.34838741 0.30753775 0.08932661 -0.00000673 0.00132215 -0.00000525" />
+      <freejoint name="floating_base_joint" />
+      <geom mesh="torso_link" class="visual" material="black" />
+      <site name="imu" type="box" size="0.005 0.005 0.005" pos="0 0 0.59" material="blue_accent" />
+      <body name="base_link" pos="0 0 0.067">
+        <inertial pos="0.00023 5e-05 -0.03695" quat="0.999975 7.39738e-05 0.00703165 0.000669489" mass="7.11" diaginertia="0.0405206 0.033802 0.0193877" />
+        <joint name="waist_yaw_joint" pos="0 0 0" axis="0 0 -1" range="-1.5707963268 1.5707963268" />
+        <geom mesh="base_link" class="visual" material="black" />
+        <body name="right_hip_pitch_link" pos="0 -0.085 -0.076467">
+          <inertial pos="-0.00709 -0.04945 -0.0433" quat="0.780112 0.23014 -0.20488 0.544505" mass="1.83" diaginertia="0.00182697 0.00136691 0.000801751" />
+          <joint name="right_hip_pitch_joint" pos="0 0 0" axis="0 1 0" range="-1.5707963268 1.5707963268" />
+          <geom mesh="right_hip_pitch_link" class="visual" material="anthracite" />
+          <body name="right_hip_roll_link" pos="-0.0015 -0.0547 -0.05">
+            <inertial pos="0.00118 0.00016 -0.11497" quat="0.712121 0.0150862 0.0167155 0.701696" mass="2.32" diaginertia="0.00587062 0.00516767 0.00197576" />
+            <joint name="right_hip_roll_joint" pos="0 0 0" axis="-1 0 0" range="-0.5235987756 1.5707963268" />
+            <geom mesh="right_hip_roll_link" class="visual" material="anthracite" />
+            <body name="right_hip_yaw_link" pos="0.0015 0 -0.0883">
+              <inertial pos="-0.02331 -0.00656 -0.2375" quat="0.667431 -0.093322 -0.0689066 0.73558" mass="3.6" diaginertia="0.016402 0.0153084 0.00650592" />
+              <joint name="right_hip_yaw_joint" pos="0 0 0" axis="0 0 -1" range="-0.7853981634 0.7853981634" />
+              <geom mesh="right_hip_yaw_link" class="visual" material="anthracite" />
+              <body name="right_knee_link" pos="-0.03 0.00025 -0.2617">
+                <inertial pos="0.01499 0.00035 -0.18179" quat="0.926136 0.0355028 0.060614 0.37059" mass="5.59" diaginertia="0.0428992 0.0427121 0.00731881" />
+                <joint name="right_knee_joint" pos="0 0 0" axis="0 1 0" range="-0.1745329252 2.0943951024" />
+                <geom mesh="right_knee_pitch" class="visual" material="anthracite" />
+                <body name="right_ankle_pitch_link" pos="0.03 -0.00125 -0.3425">
+                  <inertial pos="0.00093 -0.00194 -0.03149" quat="0.982149 -0.126921 0.0469937 0.130638" mass="0.49" diaginertia="0.000419186 0.000407787 0.000289417" />
+                  <joint name="right_ankle_pitch_joint" pos="0 0 0" axis="0 1 0" range="-0.3490658504 0.3490658504" />
+                  <geom mesh="right_ankle_pitch" class="visual" material="anthracite" />
+                  <body name="right_ankle_roll_link" pos="0 0 -0.049">
+                    <inertial pos="0.02618 0 -0.0152" quat="0.000238488 0.705424 0.000231031 0.708786" mass="0.66" diaginertia="0.00306951 0.00296424 0.000696756" />
+                    <joint name="right_ankle_roll_joint" pos="0 0 0" axis="-1 0 0" range="-0.1745329252 0.1745329252" />
+                    <geom mesh="right_ankle_roll" class="visual" material="anthracite" />
+                    <site name="right_foot" pos="0.04 0 -0.03" />
+                    <geom name="right_foot1_collision" type="capsule" fromto="0.0300232141 0.0444370646 -0.0277878167 0.1350232201 0.0444370015 -0.0277878167" size="0.0069412867" rgba="0.200000 0.800000 0.200000 0.350000" contype="1" conaffinity="1" group="3" />
+                    <geom name="right_foot2_collision" type="capsule" fromto="-0.0749767948 0.0335563957 -0.0277878167 0.1550232094 0.0335562575 -0.0277878167" size="0.0069412867" rgba="0.200000 0.800000 0.200000 0.350000" contype="1" conaffinity="1" group="3" />
+                    <geom name="right_foot3_collision" type="capsule" fromto="-0.0939767966 0.0201756751 -0.0277878167 0.1639515517 0.0201755202 -0.0277878167" size="0.0069412867" rgba="0.200000 0.800000 0.200000 0.350000" contype="1" conaffinity="1" group="3" />
+                    <geom name="right_foot4_collision" type="capsule" fromto="-0.0989768073 0.0067949462 -0.0277878167 0.1680231899 0.0067947859 -0.0277878167" size="0.0069412867" rgba="0.200000 0.800000 0.200000 0.350000" contype="1" conaffinity="1" group="3" />
+                    <geom name="right_foot5_collision" type="capsule" fromto="-0.0989768153 -0.0065857857 -0.0277878167 0.1680231818 -0.0065859461 -0.0277878167" size="0.0069412867" rgba="0.200000 0.800000 0.200000 0.350000" contype="1" conaffinity="1" group="3" />
+                    <geom name="right_foot6_collision" type="capsule" fromto="-0.0934768271 -0.0199665209 -0.0277878167 0.1647074381 -0.0199666760 -0.0277878167" size="0.0069412867" rgba="0.200000 0.800000 0.200000 0.350000" contype="1" conaffinity="1" group="3" />
+                    <geom name="right_foot7_collision" type="capsule" fromto="-0.0764768305 -0.0333472630 -0.0277878167 0.1550231692 -0.0333474021 -0.0277878167" size="0.0069412867" rgba="0.200000 0.800000 0.200000 0.350000" contype="1" conaffinity="1" group="3" />
+                    <geom name="right_foot8_collision" type="capsule" fromto="0.0300231608 -0.0442280590 -0.0277878167 0.1379396785 -0.0442281238 -0.0277878167" size="0.0069412867" rgba="0.200000 0.800000 0.200000 0.350000" contype="1" conaffinity="1" group="3" />
+                  </body>
+                  <geom name="right_ankle_pitch_candidate_collision" type="capsule" fromto="-0.0299768112 0.0000272112 -0.0459139543 0.0350231882 0.0000271721 -0.0459139543" size="0.0250000004" rgba="0.200000 0.800000 0.200000 0.350000" contype="1" conaffinity="1" group="3" />
+                </body>
+                <geom name="right_knee_pitch1_collision" type="capsule" fromto="0.0103490288 0.0209850359 -0.2469975578 0.0103490288 0.0209850359 -0.1000000015" size="0.0450000018" rgba="0.200000 0.800000 0.200000 0.350000" contype="1" conaffinity="1" group="3" />
+                <geom name="right_knee_pitch2_collision" type="capsule" fromto="0.0243490153 -0.0014999583 -0.2700000014 0.0243490153 -0.0014999583 -0.3200000133" size="0.0299999993" rgba="0.200000 0.800000 0.200000 0.350000" contype="1" conaffinity="1" group="3" />
+                <geom name="right_knee_pitch3_collision" type="capsule" fromto="0.0093490021 -0.0239849350 -0.2451828076 0.0093490021 -0.0239849350 -0.1000000015" size="0.0450000018" rgba="0.200000 0.800000 0.200000 0.350000" contype="1" conaffinity="1" group="3" />
+              </body>
+              <geom name="right_hip_yaw_link_candidate_collision" type="capsule" fromto="-0.0228382017 -0.0020997121 -0.2750411662 -0.0049461006 -0.0012184913 -0.0299999993" size="0.0626284318" rgba="0.200000 0.800000 0.200000 0.350000" contype="1" conaffinity="1" group="3" />
+            </body>
+          </body>
+          <geom name="right_hip_pitch_link_candidate_collision" type="capsule" fromto="-0.0015000126 -0.0553665590 -0.0456905465 -0.0015000126 -0.0553665590 -0.0119281028" size="0.0517950128" rgba="0.200000 0.800000 0.200000 0.350000" contype="1" conaffinity="1" group="3" />
+        </body>
+        <body name="left_hip_pitch_link" pos="0 0.085 -0.076467">
+          <inertial pos="-0.00738 0.04954 -0.04373" quat="0.574238 -0.205232 0.213838 0.763154" mass="1.81" diaginertia="0.00166589 0.001254 0.000767111" />
+          <joint name="left_hip_pitch_joint" pos="0 0 0" axis="0 -1 0" range="-1.5707963268 1.5707963268" />
+          <geom mesh="left_hip_pitch_link" class="visual" material="anthracite" />
+          <body name="left_hip_roll_link" pos="-0.0015 0.0547 -0.05">
+            <inertial pos="0.00118 0.00016 -0.114971" quat="0.712121 0.0150862 0.0167155 0.701696" mass="2.32" diaginertia="0.00587062 0.00516767 0.00197576" />
+            <joint name="left_hip_roll_joint" pos="0 0 0" axis="-1 0 0" range="-1.5707963268 0.5235987756" />
+            <geom mesh="left_hip_roll_link" class="visual" material="anthracite" />
+            <body name="left_hip_yaw_link" pos="0.0015 0 -0.0883">
+              <inertial pos="-0.02312 0.00661 -0.23761" quat="0.735609 -0.0677297 -0.0916704 0.667749" mass="3.6" diaginertia="0.0164112 0.0153305 0.00650476" />
+              <joint name="left_hip_yaw_joint" pos="0 0 0" axis="0 0 -1" range="-0.7853981634 0.7853981634" />
+              <geom mesh="left_hip_yaw_link" class="visual" material="anthracite" />
+              <body name="left_knee_link" pos="-0.029976 -0.0005 -0.2617">
+                <inertial pos="0.01486 0.00017 -0.18174" quat="0.948558 -0.0311719 0.0625315 -0.308797" mass="5.59" diaginertia="0.0428312 0.0426028 0.00725808" />
+                <joint name="left_knee_joint" pos="0 0 0" axis="0 1 0" range="-0.1745329252 2.0943951024" />
+                <geom mesh="left_knee_pitch" class="visual" material="anthracite" />
+                <body name="left_ankle_pitch_link" pos="0.03 0.0015 -0.3425">
+                  <inertial pos="0.00093 -0.00194 -0.03149" quat="0.982149 -0.126921 0.0469937 0.130638" mass="0.49" diaginertia="0.000419186 0.000407787 0.000289417" />
+                  <joint name="left_ankle_pitch_joint" pos="0 0 0" axis="0 1 0" range="-0.3490658504 0.3490658504" />
+                  <geom mesh="left_ankle_pitch" class="visual" material="anthracite" />
+                  <body name="left_ankle_roll_link" pos="0 0 -0.049">
+                    <inertial pos="0.02618 0 -0.015203" quat="0.000238488 0.705424 0.000231031 0.708786" mass="0.66" diaginertia="0.00306951 0.00296424 0.000696756" />
+                    <joint name="left_ankle_roll_joint" pos="0 0 0" axis="-1 0 0" range="-0.1745329252 0.1745329252" />
+                    <geom mesh="left_ankle_roll" class="visual" material="anthracite" />
+                    <site name="left_foot" pos="0.04 0 -0.03" />
+                    <geom name="left_foot1_collision" type="capsule" fromto="0.0299999993 -0.0444378872 -0.0277878167 0.1350000054 -0.0444378872 -0.0277878167" size="0.0069412867" rgba="0.200000 0.800000 0.200000 0.350000" contype="1" conaffinity="1" group="3" />
+                    <geom name="left_foot2_collision" type="capsule" fromto="-0.0750000030 -0.0335571553 -0.0277878167 0.1550000012 -0.0335571553 -0.0277878167" size="0.0069412867" rgba="0.200000 0.800000 0.200000 0.350000" contype="1" conaffinity="1" group="3" />
+                    <geom name="left_foot3_collision" type="capsule" fromto="-0.0939999968 -0.0201764234 -0.0277878167 0.1639283515 -0.0201764234 -0.0277878167" size="0.0069412867" rgba="0.200000 0.800000 0.200000 0.350000" contype="1" conaffinity="1" group="3" />
+                    <geom name="left_foot4_collision" type="capsule" fromto="-0.0989999995 -0.0067956914 -0.0277878167 0.1679999977 -0.0067956914 -0.0277878167" size="0.0069412867" rgba="0.200000 0.800000 0.200000 0.350000" contype="1" conaffinity="1" group="3" />
+                    <geom name="left_foot5_collision" type="capsule" fromto="-0.0989999995 0.0065850405 -0.0277878167 0.1679999977 0.0065850405 -0.0277878167" size="0.0069412867" rgba="0.200000 0.800000 0.200000 0.350000" contype="1" conaffinity="1" group="3" />
+                    <geom name="left_foot6_collision" type="capsule" fromto="-0.0935000032 0.0199657724 -0.0277878167 0.1646842620 0.0199657724 -0.0277878167" size="0.0069412867" rgba="0.200000 0.800000 0.200000 0.350000" contype="1" conaffinity="1" group="3" />
+                    <geom name="left_foot7_collision" type="capsule" fromto="-0.0764999986 0.0333465043 -0.0277878167 0.1550000012 0.0333465043 -0.0277878167" size="0.0069412867" rgba="0.200000 0.800000 0.200000 0.350000" contype="1" conaffinity="1" group="3" />
+                    <geom name="left_foot8_collision" type="capsule" fromto="0.0299999993 0.0442272363 -0.0277878167 0.1379165170 0.0442272363 -0.0277878167" size="0.0069412867" rgba="0.200000 0.800000 0.200000 0.350000" contype="1" conaffinity="1" group="3" />
+                  </body>
+                  <geom name="left_ankle_pitch_candidate_collision" type="capsule" fromto="-0.0299999993 -0.0000279978 -0.0459139543 0.0350000001 -0.0000279978 -0.0459139543" size="0.0250000004" rgba="0.200000 0.800000 0.200000 0.350000" contype="1" conaffinity="1" group="3" />
+                </body>
+                <geom name="left_knee_pitch1_collision" type="capsule" fromto="0.0103254929 -0.0207358202 -0.2469975578 0.0103254929 -0.0207358202 -0.1000000015" size="0.0450000018" rgba="0.200000 0.800000 0.200000 0.350000" contype="1" conaffinity="1" group="3" />
+                <geom name="left_knee_pitch2_collision" type="capsule" fromto="0.0243254929 0.0017491656 -0.2700000014 0.0243254929 0.0017491656 -0.3200000133" size="0.0299999993" rgba="0.200000 0.800000 0.200000 0.350000" contype="1" conaffinity="1" group="3" />
+                <geom name="left_knee_pitch3_collision" type="capsule" fromto="0.0093254932 0.0242341513 -0.2451828076 0.0093254932 0.0242341513 -0.1000000015" size="0.0450000018" rgba="0.200000 0.800000 0.200000 0.350000" contype="1" conaffinity="1" group="3" />
+              </body>
+              <geom name="left_hip_yaw_link_candidate_collision" type="capsule" fromto="-0.0229137888 0.0009728874 -0.2750411662 -0.0049999999 0.0009728874 -0.0299999993" size="0.0626284318" rgba="0.200000 0.800000 0.200000 0.350000" contype="1" conaffinity="1" group="3" />
+            </body>
+          </body>
+          <geom name="left_hip_pitch_link_candidate_collision" type="capsule" fromto="-0.0014999794 0.0553665599 -0.0456905465 -0.0014999794 0.0553665599 -0.0119281028" size="0.0517950128" rgba="0.200000 0.800000 0.200000 0.350000" contype="1" conaffinity="1" group="3" />
+        </body>
+        <geom name="base_link_candidate_collision" type="capsule" fromto="-0.0001209924 -0.0369324626 -0.0762800974 -0.0001209924 0.0368330705 -0.0762800974" size="0.0648169270" rgba="0.200000 0.800000 0.200000 0.350000" contype="1" conaffinity="1" group="3" />
+      </body>
+      <geom name="torso_link_part0_collision_0" type="capsule" fromto="0.0000483835 -0.0703784957 0.5375880631 0.0000483835 0.0704030557 0.5375880631" size="0.0932661097" rgba="0.200000 0.800000 0.200000 0.350000" contype="1" conaffinity="1" group="3" />
+      <geom name="torso_link_part1_collision_0" type="capsule" fromto="0.0016498501 0.0000152293 0.1655166430 0.0016498501 0.0000152293 0.3794502926" size="0.1129616383" rgba="0.200000 0.800000 0.200000 0.350000" contype="1" conaffinity="1" group="3" />
+    </body>
+  </worldbody>
+  <contact>
+    <exclude body1="base_link" body2="torso_link" />
+    <exclude body1="base_link" body2="right_hip_pitch_link" />
+    <exclude body1="base_link" body2="left_hip_pitch_link" />
+    <exclude body1="base_link" body2="right_hip_roll_link" />
+    <exclude body1="base_link" body2="left_hip_roll_link" />
+    <exclude body1="right_hip_pitch_link" body2="right_hip_roll_link" />
+    <exclude body1="right_hip_roll_link" body2="right_hip_yaw_link" />
+    <exclude body1="right_hip_yaw_link" body2="right_knee_link" />
+    <exclude body1="right_knee_link" body2="right_ankle_pitch_link" />
+    <exclude body1="right_ankle_pitch_link" body2="right_ankle_roll_link" />
+    <exclude body1="left_hip_pitch_link" body2="left_hip_roll_link" />
+    <exclude body1="left_hip_roll_link" body2="left_hip_yaw_link" />
+    <exclude body1="left_hip_yaw_link" body2="left_knee_link" />
+    <exclude body1="left_knee_link" body2="left_ankle_pitch_link" />
+    <exclude body1="left_ankle_pitch_link" body2="left_ankle_roll_link" />
+  </contact>
+  <sensor>
+    <gyro name="imu_ang_vel" site="imu" />
+    <velocimeter name="imu_lin_vel" site="imu" />
+    <accelerometer name="imu_lin_acc" site="imu" />
+    <subtreeangmom name="root_angmom" body="base_link" />
+  </sensor>
+</mujoco>
