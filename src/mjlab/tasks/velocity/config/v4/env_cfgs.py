@@ -175,16 +175,28 @@ def kimm_v4_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     params={
       "asset_cfg": SceneEntityCfg("robot", joint_names=("waist_yaw_joint",)),
       "command_name": "twist",
-      "std_standing": {".*": 0.15},
-      "std_turning": {".*": 0.15},
-      "std_walking": {".*": 0.15},
-      "std_running": {".*": 0.15},
+      # std 0.15 → 0.08 rad (~4.6°): waist 위치 변화 더 좁게 강제
+      "std_standing": {".*": 0.08},
+      "std_turning": {".*": 0.08},
+      "std_walking": {".*": 0.08},
+      "std_running": {".*": 0.08},
       "weight_standing": 1.0,
       "weight_turning": 1.0,
       "weight_walking": 1.0,
       "weight_running": 1.0,
       "walking_threshold": 0.05,
       "running_threshold": 1.5,
+    },
+  )
+
+  # waist_yaw 속도 페널티 (jitter / 튕김 직접 방지).
+  # waist_yaw_fixed 는 위치만 본다 → 빠르게 튀는 동작 안 잡힘.
+  # joint_vel_l2 으로 속도² 페널티 → jitter 방지.
+  cfg.rewards["waist_yaw_vel_l2"] = RewardTermCfg(
+    func=envs_mdp.joint_vel_l2,
+    weight=-0.5,
+    params={
+      "asset_cfg": SceneEntityCfg("robot", joint_names=("waist_yaw_joint",)),
     },
   )
 
